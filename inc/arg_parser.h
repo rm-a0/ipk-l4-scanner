@@ -29,6 +29,7 @@ private:
     std::vector<int> parsePorts(const std::string& input);
 
     void displayHelp();
+
 public:
     /**
      * @brief Constructor for ArgParser class
@@ -43,7 +44,14 @@ public:
      */
     void printArgs();
 
-   
+    /**
+     * @brief Getters for better encapsulation and sefety
+     */
+    std::string getInterface();
+    std::vector<int> getTcpPorts();
+    std::vector<int> getUdpPorts();
+    int getTimeout();
+    std::string getTarget();
 };
 
 #endif // ARG_PARSER_H

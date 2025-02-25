@@ -98,3 +98,23 @@ void ArgParser::printArgs() {
     std::cout << "Timeout: " << timeout << " ms" << std::endl;
     std::cout << "Target: " << (target.empty() ? "None" : target) << std::endl;
 }
+
+std::string ArgParser::getInterface() {
+    return interface;
+}
+
+std::vector<int>  ArgParser::getTcpPorts() {
+    return tcp_ports;
+}
+
+std::vector<int>  ArgParser::getUdpPorts() {
+    return udp_ports;
+}
+
+int  ArgParser::getTimeout() {
+    return timeout;
+}
+
+std::string  ArgParser::getTarget() {
+    return target;
+}
