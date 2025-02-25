@@ -38,6 +38,7 @@ std::vector<int> ArgParser::parsePorts(const std::string& input) {
 
 ArgParser::ArgParser(int argc, char* argv[]) {
     static struct option long_options[] = {
+        {"help", no_argument, NULL, 'h'},
         {"interface", required_argument, NULL, 'i'},
         {"pt", required_argument, NULL, 't'},
         {"pu", required_argument, NULL, 'u'},
@@ -47,8 +48,11 @@ ArgParser::ArgParser(int argc, char* argv[]) {
     
     int c;
     /* Source: https://stackoverflow.com/questions/7489093/getopt-long-proper-way-to-use-it*/
-    while ((c = getopt_long(argc, argv, "i:t:u:w:", long_options, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "hi:t:u:w:", long_options, NULL)) != -1) {
         switch (c) {
+            case 'h':
+                displayHelp();
+                break;
             case 'i': 
                 interface = optarg;
                 break;
@@ -59,19 +63,24 @@ ArgParser::ArgParser(int argc, char* argv[]) {
                 udp_ports = parsePorts(optarg);
                 break;
             case 'w':
-                if (optarg) {
-                    timeout = std::stoi(optarg);
-                }
-                else {
-                    std::cerr << "Argument -w | --wait expects numerical value" << std::endl;
-                    std::exit(EXIT_FAILURE);
-                }
+                timeout = std::stoi(optarg);
                 break;
             default:
-                std::cerr << "Unexpected argument" << std::endl;
+                displayHelp();
                 std::exit(EXIT_FAILURE);
         }
     }
+}
+
+void ArgParser::displayHelp() {
+     std::cout << "Usage: ipk-l4-scan [options]\n"
+              << "\nOptions:\n"
+              << "  -h, --help           Show this help message\n"
+              << "  -i, --interface      Network interface\n"
+              << "  -t, --pt             TCP port(s) (e.g. 21,22,23 or 20-23)\n"
+              << "  -u, --pu             UDP port(s) (e.g. 21,22,23 or 21-23)\n"
+              << "  -w, --wait           Timeout in milliseconds (default: 5000)\n";
+    std::exit(EXIT_SUCCESS);
 }
 
 void ArgParser::printArgs() {

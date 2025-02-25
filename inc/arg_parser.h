@@ -19,11 +19,16 @@ private:
 
     /**
      * @brief Parser for port ranges
+     * 
+     * This function iterrates over input string and based on the delimeter (either ',' or '-')
+     * appends integer values to a vector.
+     * 
      * @param input String containing port ranges
      * @return Vector of parsed integers
      */
     std::vector<int> parsePorts(const std::string& input);
 
+    void displayHelp();
 public:
     /**
      * @brief Constructor for ArgParser class
