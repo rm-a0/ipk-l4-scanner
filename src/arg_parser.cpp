@@ -1,11 +1,37 @@
 #include "arg_parser.h"
-#include <stdio.h>
 #include <getopt.h>
-#include <stdexcept>
 #include <cstdlib>
 
-std::vector<int> parsePorts(const std::string& input) {
+std::vector<int> ArgParser::parsePorts(const std::string& input) {
     std::vector<int> ports;
+    std::string token;
+    size_t input_len = input.length();
+    size_t idx = 0;
+
+    // Iterate over input
+    while (idx < input_len) {
+        // Find comma index
+        size_t comma_idx = input.find(',', idx);
+        if (comma_idx == std::string::npos) {
+            comma_idx = input_len;
+        }
+        token = input.substr(idx, comma_idx - idx);
+
+        // Find dash index (if it exists append all ports in range, otherwise append token)
+        size_t dash_idx = input.find('-'); // token.find if duplicated are allowed
+        if (dash_idx != std::string::npos) {
+            int start = std::stoi(token.substr(0, dash_idx));
+            int end = std::stoi(token.substr(dash_idx + 1));
+
+            for (int i = start; i <= end; i++) {
+                ports.push_back(i);
+            }
+        }
+        else {
+            ports.push_back(std::stoi(token));
+        }
+        idx = comma_idx + 1;
+    }
 
     return ports;
 }
@@ -27,10 +53,10 @@ ArgParser::ArgParser(int argc, char* argv[]) {
                 interface = optarg;
                 break;
             case 't':
-                // tcp_ports = parsePorts(optarg);
+                tcp_ports = parsePorts(optarg);
                 break;
             case 'u':
-                // udp_ports = parsePorts(optarg);
+                udp_ports = parsePorts(optarg);
                 break;
             case 'w':
                 if (optarg) {
