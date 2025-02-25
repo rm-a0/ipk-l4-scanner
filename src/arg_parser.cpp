@@ -70,6 +70,10 @@ ArgParser::ArgParser(int argc, char* argv[]) {
                 std::exit(EXIT_FAILURE);
         }
     }
+
+    if (optind < argc) {
+        target = argv[optind];
+    }
 }
 
 void ArgParser::displayHelp() {

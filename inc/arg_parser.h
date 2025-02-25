@@ -7,7 +7,7 @@
 
 /**
  * @class ArgParser
- * @brief A class to parse and store command line arguments
+ * @brief Parses and stores command line arguments
  */
 class ArgParser {
 private:
