@@ -45,7 +45,7 @@ ArgParser::ArgParser(int argc, char* argv[]) {
         {"wait", required_argument, NULL, 'w'},
         {NULL, 0, NULL, 0}
     };
-    
+
     int c;
     // Source: https://stackoverflow.com/questions/7489093/getopt-long-proper-way-to-use-it
     while ((c = getopt_long(argc, argv, "hi:t:u:w:", long_options, NULL)) != -1) {
@@ -101,6 +101,14 @@ void ArgParser::printArgs() {
     std::cout << std::endl;
     std::cout << "Timeout: " << timeout << " ms" << std::endl;
     std::cout << "Target: " << (target.empty() ? "None" : target) << std::endl;
+}
+
+void ArgParser::validateArgs() {
+    bool list_interfaces = false;
+
+    if (interface.empty() && tcp_ports.empty() && udp_ports.empty() && target.empty()) {
+        printf("Args not valid\n");
+    }
 }
 
 std::string ArgParser::getInterface() {

@@ -45,6 +45,12 @@ public:
     void printArgs();
 
     /**
+     * @brief Validated parsed arguments
+     * @return Void
+     */
+    void validateArgs();
+
+    /**
      * @brief Getters for better encapsulation and sefety
      */
     std::string getInterface();
