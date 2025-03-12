@@ -7,3 +7,6 @@ ipk-l4-scan
 *.out
 build/
 .vscode
+*.venv
+*venv
+*__pycache__

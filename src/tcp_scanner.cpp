@@ -13,7 +13,7 @@ TCPScanner::TCPScanner(const std::string& interface,
       ports(ports),
       timeout(timeout),
       pcap_handle(NULL) {}
-      
+
 TCPScanner::~TCPScanner() {
     if (pcap_handle) {
         pcap_close(pcap_handle);

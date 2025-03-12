@@ -47,7 +47,7 @@ ArgParser::ArgParser(int argc, char* argv[]) {
     };
     
     int c;
-    /* Source: https://stackoverflow.com/questions/7489093/getopt-long-proper-way-to-use-it*/
+    // Source: https://stackoverflow.com/questions/7489093/getopt-long-proper-way-to-use-it
     while ((c = getopt_long(argc, argv, "hi:t:u:w:", long_options, NULL)) != -1) {
         switch (c) {
             case 'h':
