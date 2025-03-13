@@ -2,6 +2,10 @@
 #include <getopt.h>
 #include <cstdlib>
 
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <cstring>
+
 std::vector<int> ArgParser::parsePorts(const std::string& input) {
     std::vector<int> ports;
     std::string token;
@@ -18,7 +22,7 @@ std::vector<int> ArgParser::parsePorts(const std::string& input) {
         token = input.substr(idx, comma_idx - idx);
 
         // Find dash index (if it exists append all ports in range, otherwise append token)
-        size_t dash_idx = input.find('-'); // token.find if duplicated are allowed
+        size_t dash_idx = input.find('-'); // token.find if duplicates are allowed
         if (dash_idx != std::string::npos) {
             int start = std::stoi(token.substr(0, dash_idx));
             int end = std::stoi(token.substr(dash_idx + 1));
@@ -46,8 +50,8 @@ ArgParser::ArgParser(int argc, char* argv[]) {
         {NULL, 0, NULL, 0}
     };
 
-    int c;
     // Source: https://stackoverflow.com/questions/7489093/getopt-long-proper-way-to-use-it
+    int c;
     while ((c = getopt_long(argc, argv, "hi:t:u:w:", long_options, NULL)) != -1) {
         switch (c) {
             case 'h':
@@ -103,11 +107,29 @@ void ArgParser::printArgs() {
     std::cout << "Target: " << (target.empty() ? "None" : target) << std::endl;
 }
 
-void ArgParser::validateArgs() {
-    bool list_interfaces = false;
+// Source: https://lindevs.com/get-all-network-interfaces-on-linux-using-cpp
+void listActiveInterfaces() {
+    struct ifaddrs *addrs;
+    if (getifaddrs(&addrs) == -1) {
+        std::cerr << "Error getting interfaces: " << strerror(errno) << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
 
+    for (struct ifaddrs *addr = addrs; addr != nullptr; addr = addr->ifa_next) {
+        if (addr->ifa_addr && addr->ifa_addr->sa_family == AF_PACKET) {
+            // Check if interface is avaliable (IFF_UP)
+            if (addr->ifa_flags & IFF_UP) {
+                std::cout << addr->ifa_name << std::endl;
+            }
+        }
+    }
+
+    freeifaddrs(addrs);
+}
+
+void ArgParser::validateArgs() {
     if (interface.empty() && tcp_ports.empty() && udp_ports.empty() && target.empty()) {
-        printf("Args not valid\n");
+        listActiveInterfaces();
     }
 }
 

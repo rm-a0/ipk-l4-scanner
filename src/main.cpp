@@ -3,7 +3,7 @@
 
 int main(int argc, char* argv[]) {
     ArgParser parser(argc, argv);
-    parser.printArgs();
+    //parser.printArgs();
     parser.validateArgs();
     return 0;
 }

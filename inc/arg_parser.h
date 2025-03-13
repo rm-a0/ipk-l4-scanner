@@ -6,6 +6,12 @@
 #include <iostream>
 
 /**
+ * @brief Prints all active network interfaces
+ * @return Void
+ */
+void listActiveInterfaces();
+
+/**
  * @class ArgParser
  * @brief Parses and stores command line arguments
  */
@@ -45,7 +51,7 @@ public:
     void printArgs();
 
     /**
-     * @brief Validated parsed arguments
+     * @brief Validates parsed arguments
      * @return Void
      */
     void validateArgs();
