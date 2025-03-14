@@ -1,7 +1,6 @@
 #include "arg_parser.h"
 #include <getopt.h>
 #include <cstdlib>
-
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <cstring>
@@ -117,7 +116,7 @@ void listActiveInterfaces() {
 
     for (struct ifaddrs *addr = addrs; addr != nullptr; addr = addr->ifa_next) {
         if (addr->ifa_addr && addr->ifa_addr->sa_family == AF_PACKET) {
-            // Check if interface is avaliable (IFF_UP)
+            // Check if interface is available (IFF_UP)
             if (addr->ifa_flags & IFF_UP) {
                 std::cout << addr->ifa_name << std::endl;
             }

@@ -2,7 +2,11 @@
 #include <iostream>
 #include <cstring>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <netinet/ip.h>
 #include <arpa/inet.h>
+#include <unistd.h> 
 
 TCPScanner::TCPScanner(const std::string& interface, 
                        const std::string& target_ip, 
@@ -11,11 +15,17 @@ TCPScanner::TCPScanner(const std::string& interface,
     : interface(interface),
       target_ip(target_ip), 
       ports(ports),
-      timeout(timeout),
-      pcap_handle(NULL) {}
-
-TCPScanner::~TCPScanner() {
-    if (pcap_handle) {
-        pcap_close(pcap_handle);
+      timeout(timeout)
+{
+    raw_socket = socket(AF_INET, SOCK_RAW, IPPROTO_TCP);
+    if (raw_socket < 0) {
+        std::cerr << "Error creating raw socket" << std::endl;
+        exit(EXIT_FAILURE);
     }
 }
+
+TCPScanner::~TCPScanner() {
+    close(raw_socket);
+}
+
+
