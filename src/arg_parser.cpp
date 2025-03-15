@@ -129,6 +129,7 @@ void listActiveInterfaces() {
 void ArgParser::validateArgs() {
     if (interface.empty() && tcp_ports.empty() && udp_ports.empty() && target.empty()) {
         listActiveInterfaces();
+        std::exit(EXIT_SUCCESS);
     }
 }
 

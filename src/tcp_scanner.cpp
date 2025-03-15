@@ -36,7 +36,7 @@ void TCPScanner::createRawSocket(int type) {
     raw_socket = socket(type, SOCK_RAW, IPPROTO_TCP);
     if (raw_socket < 0) {
         std::cerr << "Error creating raw socket" << std::endl;
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
 }
 
@@ -62,7 +62,7 @@ std::string TCPScanner::stringToIp(const std::string &str) {
     // Get the list of interfaces
     if (getifaddrs(&addrs) == -1) {
         std::cerr << "Error getting interfaces" << std::endl;
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
 
     // Loop through the interfaces
@@ -83,7 +83,7 @@ std::string TCPScanner::stringToIp(const std::string &str) {
     }
     else {
         std::cerr << "Error could not find IP address of: " << str << std::endl;
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
 
 }
