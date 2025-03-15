@@ -20,12 +20,13 @@ TCPScanner::TCPScanner(const std::string& interface,
 {
     // Default ipv4 socket
     createRawSocket(AF_INET);
-    setupTcpHeader();
     std::string int_ip = stringToIp(interface);
     std::cout << "Interface ip: " << int_ip << std::endl;
     std::string dst_ip = stringToIp(target_ip);
     std::cout << "Target ip: " << dst_ip << std::endl;
     setupIPv4Header(int_ip, dst_ip);
+    setupTCPHeader();
+    sendPacket();
 }
 
 TCPScanner::~TCPScanner() {
@@ -85,10 +86,9 @@ std::string TCPScanner::stringToIp(const std::string &str) {
         std::cerr << "Error could not find IP address of: " << str << std::endl;
         std::exit(EXIT_FAILURE);
     }
-
 }
 
-void TCPScanner::setupTcpHeader() {
+void TCPScanner::setupTCPHeader() {
     memset(&tcp_header, 0, sizeof(tcp_header));
     tcp_header.th_seq = 0;  // Sequence number
     tcp_header.th_ack = 0;  // Acknowledgment number
@@ -97,6 +97,7 @@ void TCPScanner::setupTcpHeader() {
     tcp_header.th_win = htons(5840);  // Window size
     tcp_header.th_sum = 0;  // Checksum (will be computed later)
     tcp_header.th_urp = 0;  // Urgent pointer
+    tcp_header.check = calculateTCPChecksum();
 }
 
 void TCPScanner::setupIPv4Header(const std::string &source_ip, const std::string &target_ip) {
@@ -108,7 +109,72 @@ void TCPScanner::setupIPv4Header(const std::string &source_ip, const std::string
     ip_header.frag_off = 0;  // Fragment offset
     ip_header.ttl = 255;  // Time to live
     ip_header.protocol = IPPROTO_TCP;  // Protocol (TCP)
-    ip_header.check = 0; // Calculate checksum later
     ip_header.saddr = inet_addr(source_ip.c_str());  // Source IP
     ip_header.daddr = inet_addr(target_ip.c_str());  // Target IP
+    ip_header.check = 0;
+    ip_header.check = calculateChecksum((uint16_t*)&ip_header, sizeof(struct iphdr));
+}
+
+uint16_t TCPScanner::calculateChecksum(uint16_t* data, int length) {
+    uint32_t sum = 0;
+
+    while (length > 1) {
+        sum += *data++;
+        length -= 2;
+    }
+
+    if (length == 1) {
+        sum += *(uint8_t*)data;
+    }
+
+    sum = (sum >> 16) + (sum & 0xFFFF);
+    sum += (sum >> 16);
+
+    return ~sum;
+}
+
+uint16_t TCPScanner::calculateTCPChecksum() {
+    pseudohdr p_header;
+    p_header.src_addr = ip_header.saddr;
+    p_header.dst_addr = ip_header.daddr;
+    p_header.reserved = 0;
+    p_header.protocol = IPPROTO_TCP;
+    p_header.tcp_len = htons(sizeof(struct tcphdr)); // No payload
+
+    int total_len = sizeof(pseudohdr) + sizeof(struct tcphdr);
+    uint8_t* buffer = new uint8_t[total_len];
+
+    memcpy(buffer, &p_header, sizeof(pseudohdr));
+    memcpy(buffer + sizeof(pseudohdr), &tcp_header, sizeof(struct tcphdr));
+
+    uint16_t checksum = calculateChecksum((uint16_t*)buffer, total_len);
+    delete[] buffer;
+
+    return checksum;
+}
+
+void TCPScanner::sendPacket() {
+    // Create a buffer for the IP header and TCP header
+    int packet_size = sizeof(struct iphdr) + sizeof(struct tcphdr);
+    uint8_t *packet = new uint8_t[packet_size];
+
+    // Copy the IP header and TCP header into the packet buffer
+    memcpy(packet, &ip_header, sizeof(struct iphdr));
+    memcpy(packet + sizeof(struct iphdr), &tcp_header, sizeof(struct tcphdr));
+
+    // Send the packet using the raw socket
+    struct sockaddr_in dest_info;
+    dest_info.sin_family = AF_INET;
+    dest_info.sin_port = htons(ports[0]); // Port to scan (you can loop over multiple ports)
+    dest_info.sin_addr.s_addr = ip_header.daddr; // Destination IP
+
+    // Send the packet to the destination
+    if (sendto(raw_socket, packet, packet_size, 0, (struct sockaddr *)&dest_info, sizeof(dest_info)) < 0) {
+        std::cerr << "Error sending packet" << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+
+    std::cout << "Packet sent to " << target_ip << std::endl;
+
+    delete[] packet; // Don't forget to delete the allocated memory
 }

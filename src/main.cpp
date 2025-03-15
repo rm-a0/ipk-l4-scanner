@@ -11,7 +11,5 @@ int main(int argc, char* argv[]) {
                             parser.getTarget(),
                             parser.getTcpPorts(),
                             parser.getTimeout());
-    tcp_scanner.setupTcpHeader();
-
     return 0;
 }

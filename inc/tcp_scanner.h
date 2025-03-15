@@ -13,13 +13,20 @@
  */
 class TCPScanner {
 private:
-    std::string interface;          ///< Network interface
-    std::string target_ip;          ///< IPv4 or IPv6 of a target
-    std::vector<int> ports;         ///< TCP ports
-    int timeout;                    ///< Timeout in ms
-    int raw_socket;                 ///< Raw socket
-    struct iphdr ip_header;         ///< IPv4 header
-    struct tcphdr tcp_header;       ///< TCP header
+    std::string interface;      ///< Network interface
+    std::string target_ip;      ///< IPv4 or IPv6 of a target
+    std::vector<int> ports;     ///< TCP ports
+    int timeout;                ///< Timeout in ms
+    int raw_socket;             ///< Raw socket
+    struct iphdr ip_header;     ///< IPv4 header
+    struct tcphdr tcp_header;   ///< TCP header
+    struct pseudohdr {          ///< Pseudo header for TCP checksum
+        uint32_t src_addr;          ///< Source IP
+        uint32_t dst_addr;          ///< Target IP
+        uint32_t reserved;          ///< 0
+        uint32_t protocol;          ///< Protocol (TCP = 0)
+        uint32_t tcp_len;           ///< Segment length og TCP
+    };
 
     /**
      * @brief Creates raw socket
@@ -53,7 +60,7 @@ private:
      * @brief Sets up default TCP header
      * @return Void
      */
-    void setupTcpHeader();
+    void setupTCPHeader();
 
     /**
      * @brief Sets up default IPv4 header
@@ -61,6 +68,10 @@ private:
      * @return Void
      */
     void setupIPv4Header(const std::string &source_ip, const std::string &target_ip);
+
+    uint16_t calculateChecksum(uint16_t* data, int length);
+    uint16_t calculateTCPChecksum();
+    void sendPacket();
 
 public:
     /**
