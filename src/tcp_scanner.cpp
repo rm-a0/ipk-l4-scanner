@@ -11,21 +11,31 @@
 #include <sys/select.h>
 
 TCPScanner::TCPScanner(const std::string& interface, 
-                       const std::string& target_ip, 
+                       const std::string& target, 
                        const std::vector<int>& ports, 
                        int timeout)
-    : interface(interface), target_ip(target_ip), ports(ports), timeout(timeout) {
-    createRawSocket(AF_INET);
-    int one = 1;
-    if (setsockopt(raw_socket, IPPROTO_IP, IP_HDRINCL, &one, sizeof(one)) < 0) {
-        std::cerr << "Error setting IP_HDRINCL: " << strerror(errno) << std::endl;
-        std::exit(EXIT_FAILURE);
+                      : ports(ports), timeout(timeout) 
+{
+    if (isIPv6(target)) {
+        std::cout << "IPv6 support not implemendted yet" << std::endl;
+        exit(EXIT_FAILURE);
     }
-    std::string int_ip = stringToIp(interface);
-    std::cout << "Interface IP: " << int_ip << std::endl;
-    std::string dst_ip = stringToIp(target_ip);
-    std::cout << "Target IP: " << dst_ip << std::endl;
-    setupIPv4Header(int_ip, dst_ip);
+    else {
+        // Convert strings to IPv4
+        interface_ip = stringToIPv4(interface);
+        target_ip = stringToIPv4(target);
+        std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
+        std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
+
+        // Create raw socket for IPv4
+        createRawSocket(AF_INET);
+        int one = 1;
+        if (setsockopt(raw_socket, IPPROTO_IP, IP_HDRINCL, &one, sizeof(one)) < 0) {
+            std::cerr << "Error setting IP_HDRINCL: " << strerror(errno) << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
+        setupIPv4Header(interface_ip, target_ip);
+    }
 }
 
 TCPScanner::~TCPScanner() {
@@ -43,7 +53,7 @@ void TCPScanner::createRawSocket(int type) {
 
     struct sockaddr_in sin;
     sin.sin_family = AF_INET;
-    sin.sin_addr.s_addr = inet_addr(stringToIp(interface).c_str());
+    sin.sin_addr.s_addr = inet_addr(interface_ip.c_str());
     sin.sin_port = 0;
     if (bind(raw_socket, (struct sockaddr*)&sin, sizeof(sin)) < 0) {
         std::cerr << "Error binding socket: " << strerror(errno) << std::endl;
@@ -61,7 +71,7 @@ bool TCPScanner::isIPv6(const std::string &str) {
     return inet_pton(AF_INET6, str.c_str(), &(sa.sin6_addr)) != 0;
 }
 
-std::string TCPScanner::stringToIp(const std::string &str) {
+std::string TCPScanner::stringToIPv4(const std::string &str) {
     if (isIPv4(str)) {
         return str;
     }
@@ -183,7 +193,7 @@ void TCPScanner::listenForResponses() {
     select_timeout.tv_sec = 2;
     select_timeout.tv_usec = 0;
 
-    std::string local_ip = stringToIp(interface);
+    std::string local_ip = interface_ip;
     int responses_expected = ports.size();
     int responses_received = 0;
 
