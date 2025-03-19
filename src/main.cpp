@@ -8,8 +8,11 @@ int main(int argc, char* argv[]) {
 
     // Initialize tcp scanner
     TCPScanner tcp_scanner( parser.getInterface(),
-                            parser.getTarget(),
+                           parser.getTarget(),
                             parser.getTcpPorts(),
                             parser.getTimeout());
+
+    tcp_scanner.sendPackets();
+    tcp_scanner.listenForResponses();
     return 0;
 }
