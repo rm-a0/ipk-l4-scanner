@@ -37,6 +37,7 @@ struct pseudohdr6 {
  */
 class TCPScanner {
 private:
+    bool is_ipv6;               ///< Flag for IP address type
     int raw_socket;             ///< Raw socket
     std::string interface_ip;   ///< IP address of interface
     std::string target_ip;      ///< IP address of target
@@ -72,12 +73,26 @@ private:
     std::string stringToIPv4(const std::string &str);
 
     /**
+     * @brief Converts string to IPv6 address
+     * @return IPv6 in string format
+     */
+    std::string stringToIPv6(const std::string &str);
+
+    /**
      * @brief Sets up IPv4 header
      * @param source_ip IPv4 address of the interface
      * @param target_ip IPv4 address of the target
      * @return void
      */
     void setupIPv4Header(const std::string &source_ip, const std::string &target_ip);
+
+    /**
+     * @brief Sets up IPv6 header
+     * @param source_ip IPv6 address of the interface
+     * @param target_ip IPv6 address of the target
+     * @return void
+     */
+    void setupIPv6Header(const std::string &source_ip, const std::string &target_ip);
 
     /**
      * @brief Sets up TCP header

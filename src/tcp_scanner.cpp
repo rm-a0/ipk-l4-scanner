@@ -16,8 +16,17 @@ TCPScanner::TCPScanner(const std::string& interface,
                        int timeout)
                       : ports(ports), timeout(timeout) 
 {
-    if (isIPv6(target)) {
-        std::cout << "IPv6 support not implemendted yet" << std::endl;
+    is_ipv6 = isIPv6(target);
+    if (is_ipv6) {
+        // Convert strings to IPv6
+        interface_ip = stringToIPv6(interface);
+        target_ip = stringToIPv6(target);
+        std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
+        std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
+
+
+        createRawSocket(AF_INET6);
+        // Set protocol for ipv6
         exit(EXIT_FAILURE);
     }
     else {
@@ -51,13 +60,26 @@ void TCPScanner::createRawSocket(int type) {
         std::exit(EXIT_FAILURE);
     }
 
-    struct sockaddr_in sin;
-    sin.sin_family = AF_INET;
-    sin.sin_addr.s_addr = inet_addr(interface_ip.c_str());
-    sin.sin_port = 0;
-    if (bind(raw_socket, (struct sockaddr*)&sin, sizeof(sin)) < 0) {
-        std::cerr << "Error binding socket: " << strerror(errno) << std::endl;
-        std::exit(EXIT_FAILURE);
+    // Bind socket to interface
+    if (is_ipv6) {
+        struct sockaddr_in6 sin6;
+        sin6.sin6_family = AF_INET6;
+        inet_pton(AF_INET6, interface_ip.c_str(), &sin6.sin6_addr);
+        sin6.sin6_port = 0;
+        if (bind(raw_socket, (struct sockaddr*)&sin6, sizeof(sin6)) < 0) {
+            std::cerr << "Error binding socket: " << strerror(errno) << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
+    }
+    else {
+        struct sockaddr_in sin;
+        sin.sin_family = AF_INET;
+        sin.sin_addr.s_addr = inet_addr(interface_ip.c_str());
+        sin.sin_port = 0;
+        if (bind(raw_socket, (struct sockaddr*)&sin, sizeof(sin)) < 0) {
+            std::cerr << "Error binding socket: " << strerror(errno) << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
     }
 }
 
@@ -71,6 +93,7 @@ bool TCPScanner::isIPv6(const std::string &str) {
     return inet_pton(AF_INET6, str.c_str(), &(sa.sin6_addr)) != 0;
 }
 
+// Source: https://stackoverflow.com/questions/5328070/how-to-convert-string-to-ip-address-and-vice-versa and Grok3
 std::string TCPScanner::stringToIPv4(const std::string &str) {
     if (isIPv4(str)) {
         return str;
@@ -88,6 +111,38 @@ std::string TCPScanner::stringToIPv4(const std::string &str) {
         if (ifa->ifa_name == str && ifa->ifa_addr->sa_family == AF_INET) {
             struct sockaddr_in* sockaddr_ipv4 = (struct sockaddr_in*)ifa->ifa_addr;
             addr_str = inet_ntoa(sockaddr_ipv4->sin_addr);
+            break;
+        }
+    }
+
+    freeifaddrs(addrs);
+
+    if (addr_str != nullptr) {
+        return std::string(addr_str);
+    } else {
+        std::cerr << "Error: Could not find IP address for interface " << str << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+}
+
+std::string TCPScanner::stringToIPv6(const std::string &str) {
+    if (isIPv6(str)) {
+        return str;
+    }
+
+    struct ifaddrs *addrs, *ifa;
+    char *addr_str = nullptr;
+
+    if (getifaddrs(&addrs) == -1) {
+        std::cerr << "Error getting interfaces: " << strerror(errno) << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+
+    for (ifa = addrs; ifa != nullptr; ifa = ifa->ifa_next) {
+        if (ifa->ifa_name == str && ifa->ifa_addr->sa_family == AF_INET6) {
+            char ip6_str[INET6_ADDRSTRLEN];
+                inet_ntop(AF_INET6, &((struct sockaddr_in6*)ifa->ifa_addr)->sin6_addr, ip6_str, INET6_ADDRSTRLEN);
+                addr_str = ip6_str;
             break;
         }
     }
@@ -145,6 +200,7 @@ uint16_t TCPScanner::calculateChecksum(uint16_t* data, int length) {
     return ~sum;
 }
 
+// Source: Deepseek
 uint16_t TCPScanner::calculateTCPChecksum() {
     pseudohdr p_header;
     p_header.src_addr = ip_header.saddr;
