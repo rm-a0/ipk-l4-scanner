@@ -2,6 +2,7 @@
 #define TCP_SCANNER_H
 
 #include <string>
+#include <set>
 #include <vector>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
@@ -37,16 +38,17 @@ struct pseudohdr6 {
  */
 class TCPScanner {
 private:
-    bool is_ipv6;               ///< Flag for IP address type
-    int raw_socket;             ///< Raw socket
-    std::string interface_name; ///< Name of the interface (used for IPv6 socket)
-    std::string interface_ip;   ///< IP address of interface
-    std::string target_ip;      ///< IP address of target
-    std::vector<int> ports;     ///< TCP Ports
-    int timeout;                ///< Timeout in ms
-    struct iphdr ip_header;     ///< IPv4 header
-    struct ip6_hdr ip6_header;  ///< IPv6 header
-    struct tcphdr tcp_header;   ///< TCP header
+    bool is_ipv6;                   ///< Flag for IP address type
+    int raw_socket;                 ///< Raw socket
+    std::string interface_name;     ///< Name of the interface (used for IPv6 socket)
+    std::string interface_ip;       ///< IP address of interface
+    std::string target_ip;          ///< IP address of target
+    std::vector<int> ports;         ///< All TCP ports
+    std::set<int> pending_ports;    ///< TCP ports to be processed
+    int timeout;                    ///< Timeout in ms
+    struct iphdr ip_header;         ///< IPv4 header
+    struct ip6_hdr ip6_header;      ///< IPv6 header
+    struct tcphdr tcp_header;       ///< TCP header
 
     /**
      * @brief Creates raw socket for TCP scanning
