@@ -26,7 +26,7 @@ TCPScanner::TCPScanner(const std::string& interface,
 
 
         createRawSocket(AF_INET6);
-        // Set protocol for ipv6
+        setupIPv6Header(interface_ip, target_ip);
         exit(EXIT_FAILURE);
     }
     else {
@@ -38,11 +38,6 @@ TCPScanner::TCPScanner(const std::string& interface,
 
         // Create raw socket for IPv4
         createRawSocket(AF_INET);
-        int one = 1;
-        if (setsockopt(raw_socket, IPPROTO_IP, IP_HDRINCL, &one, sizeof(one)) < 0) {
-            std::cerr << "Error setting IP_HDRINCL: " << strerror(errno) << std::endl;
-            std::exit(EXIT_FAILURE);
-        }
         setupIPv4Header(interface_ip, target_ip);
     }
 }
@@ -80,6 +75,12 @@ void TCPScanner::createRawSocket(int type) {
             std::cerr << "Error binding socket: " << strerror(errno) << std::endl;
             std::exit(EXIT_FAILURE);
         }
+    }
+
+    int one = 1;
+    if (setsockopt(raw_socket, is_ipv6 ? IPPROTO_IPV6 : IPPROTO_IP, IP_HDRINCL, &one, sizeof(one)) < 0) {
+        std::cerr << "Error setting IP_HDRINCL: " << strerror(errno) << std::endl;
+        std::exit(EXIT_FAILURE);
     }
 }
 
@@ -172,6 +173,16 @@ void TCPScanner::setupIPv4Header(const std::string &source_ip, const std::string
     ip_header.check = calculateChecksum((uint16_t*)&ip_header, sizeof(struct iphdr));
 }
 
+void TCPScanner::setupIPv6Header(const std::string &source_ip, const std::string &target_ip) {
+    memset(&ip6_header, 0, sizeof(ip6_header));
+    ip6_header.ip6_flow = htonl(0x60000000); // Version 6, Traffic Class 0, Flow Label 0
+    ip6_header.ip6_plen = htons(sizeof(struct tcphdr));
+    ip6_header.ip6_nxt = IPPROTO_TCP;
+    ip6_header.ip6_hlim = 255;
+    inet_pton(AF_INET6, source_ip.c_str(), &ip6_header.ip6_src);
+    inet_pton(AF_INET6, target_ip.c_str(), &ip6_header.ip6_dst);
+}
+
 void TCPScanner::setupTCPHeader(int port) {
     memset(&tcp_header, 0, sizeof(tcp_header));
     tcp_header.th_sport = htons(12345);
@@ -213,6 +224,24 @@ uint16_t TCPScanner::calculateTCPChecksum() {
     uint8_t* buffer = new uint8_t[total_len];
     memcpy(buffer, &p_header, sizeof(pseudohdr));
     memcpy(buffer + sizeof(pseudohdr), &tcp_header, sizeof(struct tcphdr));
+
+    uint16_t checksum = calculateChecksum((uint16_t*)buffer, total_len);
+    delete[] buffer;
+    return checksum;
+}
+
+uint16_t TCPScanner::calculateTCP6Checksum() {
+    pseudohdr6 p_header;
+    inet_pton(AF_INET6, interface_ip.c_str(), &p_header.src_addr);
+    inet_pton(AF_INET6, target_ip.c_str(), &p_header.dst_addr);
+    p_header.tcp_len = htonl(sizeof(struct tcphdr));
+    p_header.reserved[0] = p_header.reserved[1] = p_header.reserved[2] = 0;
+    p_header.next_header = IPPROTO_TCP;
+
+    int total_len = sizeof(pseudohdr6) + sizeof(struct tcphdr);
+    uint8_t* buffer = new uint8_t[total_len];
+    memcpy(buffer, &p_header, sizeof(pseudohdr6));
+    memcpy(buffer + sizeof(pseudohdr6), &tcp_header, sizeof(struct tcphdr));
 
     uint16_t checksum = calculateChecksum((uint16_t*)buffer, total_len);
     delete[] buffer;

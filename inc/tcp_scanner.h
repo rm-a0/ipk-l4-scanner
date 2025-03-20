@@ -118,6 +118,7 @@ private:
      * @return Calculated checksum
      */
     uint16_t calculateTCPChecksum();
+    uint16_t calculateTCP6Checksum();
 
 public:
     /**
