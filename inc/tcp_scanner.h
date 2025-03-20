@@ -39,6 +39,7 @@ class TCPScanner {
 private:
     bool is_ipv6;               ///< Flag for IP address type
     int raw_socket;             ///< Raw socket
+    std::string interface_name; ///< Name of the interface (used for IPv6 socket)
     std::string interface_ip;   ///< IP address of interface
     std::string target_ip;      ///< IP address of target
     std::vector<int> ports;     ///< TCP Ports

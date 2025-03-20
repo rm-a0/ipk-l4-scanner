@@ -9,34 +9,36 @@
 #include <algorithm>
 #include <cerrno>
 #include <sys/select.h>
+#include <net/if.h>
 
 TCPScanner::TCPScanner(const std::string& interface, 
                        const std::string& target, 
                        const std::vector<int>& ports, 
                        int timeout)
-                      : ports(ports), timeout(timeout) 
+                      : interface_name(interface), ports(ports), timeout(timeout) 
 {
     is_ipv6 = isIPv6(target);
     if (is_ipv6) {
         // Convert strings to IPv6
         interface_ip = stringToIPv6(interface);
         target_ip = stringToIPv6(target);
+
         std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
         std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
 
-
+        // Create raw socket and header for IPv6
         createRawSocket(AF_INET6);
         setupIPv6Header(interface_ip, target_ip);
-        exit(EXIT_FAILURE);
     }
     else {
         // Convert strings to IPv4
         interface_ip = stringToIPv4(interface);
         target_ip = stringToIPv4(target);
+
         std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
         std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
 
-        // Create raw socket for IPv4
+        // Create raw socket and header for IPv4
         createRawSocket(AF_INET);
         setupIPv4Header(interface_ip, target_ip);
     }
@@ -60,7 +62,17 @@ void TCPScanner::createRawSocket(int type) {
         struct sockaddr_in6 sin6;
         sin6.sin6_family = AF_INET6;
         inet_pton(AF_INET6, interface_ip.c_str(), &sin6.sin6_addr);
+
         sin6.sin6_port = 0;
+        if (IN6_IS_ADDR_LINKLOCAL(&sin6.sin6_addr)) {
+            sin6.sin6_scope_id = if_nametoindex(interface_name.c_str());
+            if (sin6.sin6_scope_id == 0) {
+                std::cerr << "Error getting interface index for " << interface_ip << ": " << strerror(errno) << std::endl;
+                std::exit(EXIT_FAILURE);
+            }
+        } else {
+            sin6.sin6_scope_id = 0;
+        }
         if (bind(raw_socket, (struct sockaddr*)&sin6, sizeof(sin6)) < 0) {
             std::cerr << "Error binding socket: " << strerror(errno) << std::endl;
             std::exit(EXIT_FAILURE);
@@ -194,7 +206,7 @@ void TCPScanner::setupTCPHeader(int port) {
     tcp_header.th_win = htons(5840);
     tcp_header.th_sum = 0;
     tcp_header.th_urp = 0;
-    tcp_header.th_sum = calculateTCPChecksum();
+    tcp_header.th_sum = is_ipv6 ? calculateTCP6Checksum() : calculateTCPChecksum();
 }
 
 uint16_t TCPScanner::calculateChecksum(uint16_t* data, int length) {
@@ -249,27 +261,52 @@ uint16_t TCPScanner::calculateTCP6Checksum() {
 }
 
 void TCPScanner::sendPackets() {
-    struct sockaddr_in dest_info;
-    dest_info.sin_family = AF_INET;
-    dest_info.sin_addr.s_addr = ip_header.daddr;
+    if (is_ipv6) {
+        struct sockaddr_in6 dest_info;
+        memset(&dest_info, 0, sizeof(dest_info));
+        dest_info.sin6_family = AF_INET6;
+        inet_pton(AF_INET6, target_ip.c_str(), &dest_info.sin6_addr);
+        dest_info.sin6_port = 0;
 
-    for (int port : ports) {
-        setupTCPHeader(port);
-        int packet_size = sizeof(struct iphdr) + sizeof(struct tcphdr);
-        uint8_t *packet = new uint8_t[packet_size];
-        memcpy(packet, &ip_header, sizeof(struct iphdr));
-        memcpy(packet + sizeof(struct iphdr), &tcp_header, sizeof(struct tcphdr));
+        for (int port : ports) {
+            setupTCPHeader(port);
+            int packet_size = sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
+            std::vector<uint8_t> packet(packet_size);
+            memcpy(packet.data(), &ip6_header, sizeof(struct ip6_hdr));
+            memcpy(packet.data() + sizeof(struct ip6_hdr), &tcp_header, sizeof(struct tcphdr));
 
-        if (sendto(raw_socket, packet, packet_size, 0, 
-                   (struct sockaddr *)&dest_info, sizeof(dest_info)) < 0) {
-            std::cerr << "Error sending packet to port " << port << ": " << strerror(errno) << std::endl;
-        } else {
-            std::cout << "Packet sent to " << target_ip << " on port " << port << std::endl;
+            if (sendto(raw_socket, packet.data(), packet_size, 0, 
+                       (struct sockaddr *)&dest_info, sizeof(dest_info)) < 0) {
+                std::cerr << "Error sending packet to port " << port << ": " << strerror(errno) << std::endl;
+            } else {
+                std::cout << "Packet sent to " << target_ip << " on port " << port << std::endl;
+            }
         }
-        delete[] packet;
+    }
+    else {
+        struct sockaddr_in dest_info;
+        memset(&dest_info, 0, sizeof(dest_info));
+        dest_info.sin_family = AF_INET;
+        dest_info.sin_addr.s_addr = ip_header.daddr;
+
+        for (int port : ports) {
+            setupTCPHeader(port);
+            int packet_size = sizeof(struct iphdr) + sizeof(struct tcphdr);
+            std::vector<uint8_t> packet(packet_size);
+            memcpy(packet.data(), &ip_header, sizeof(struct iphdr));
+            memcpy(packet.data() + sizeof(struct iphdr), &tcp_header, sizeof(struct tcphdr));
+
+            if (sendto(raw_socket, packet.data(), packet_size, 0, 
+                       (struct sockaddr *)&dest_info, sizeof(dest_info)) < 0) {
+                std::cerr << "Error sending packet to port " << port << ": " << strerror(errno) << std::endl;
+            } else {
+                std::cout << "Packet sent to " << target_ip << " on port " << port << std::endl;
+            }
+        }
     }
 }
 
+// Source: Grok3
 void TCPScanner::listenForResponses() {
     uint8_t buffer[65536];
     struct sockaddr_in sender_addr;
@@ -304,32 +341,66 @@ void TCPScanner::listenForResponses() {
             continue;
         }
 
-        struct iphdr *ip_hdr = (struct iphdr*)buffer;
-        int ip_header_len = ip_hdr->ihl * 4;
-        struct tcphdr *tcp_hdr = (struct tcphdr*)(buffer + ip_header_len);
+        std::string src_ip, dst_ip;
+        char src_str[INET6_ADDRSTRLEN], dst_str[INET6_ADDRSTRLEN];
+        if (is_ipv6) {
+            struct ip6_hdr *ip6_hdr = (struct ip6_hdr*)buffer;
+            int ip_header_len = sizeof(struct ip6_hdr);
+            struct tcphdr *tcp_hdr = (struct tcphdr*)(buffer + ip_header_len);
+            inet_ntop(AF_INET6, &ip6_hdr->ip6_src, src_str, INET6_ADDRSTRLEN);
+            inet_ntop(AF_INET6, &ip6_hdr->ip6_dst, dst_str, INET6_ADDRSTRLEN);
+            src_ip = src_str;
+            dst_ip = dst_str;
 
-        std::string src_ip = inet_ntoa(*(struct in_addr*)&ip_hdr->saddr);
-        std::string dst_ip = inet_ntoa(*(struct in_addr*)&ip_hdr->daddr);
-        int port = ntohs(tcp_hdr->th_sport);
+            std::cout << "Received: " << src_ip << ":" << ntohs(tcp_hdr->th_sport) 
+                      << " -> " << dst_ip << ":" << ntohs(tcp_hdr->th_dport) 
+                      << " Flags: " << (int)tcp_hdr->th_flags << std::endl;
 
-        std::cout << "Received: " << src_ip << ":" << ntohs(tcp_hdr->th_sport) 
-                  << " -> " << dst_ip << ":" << ntohs(tcp_hdr->th_dport) 
-                  << " Flags: " << (int)tcp_hdr->th_flags << std::endl;
+            if (src_ip == local_ip && dst_ip == target_ip && tcp_hdr->th_flags == TH_SYN) {
+                continue;
+            }
 
-        if (src_ip == local_ip && dst_ip == target_ip && tcp_hdr->th_flags == TH_SYN) {
-            continue;
-        }
-
-        if (src_ip == target_ip && dst_ip == local_ip) {
-            if (std::find(ports.begin(), ports.end(), port) != ports.end()) {
-                if ((tcp_hdr->th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK)) {
-                    std::cout << "Port " << port << " is OPEN" << std::endl;
-                } else if (tcp_hdr->th_flags & TH_RST) {
-                    std::cout << "Port " << port << " is CLOSED" << std::endl;
-                } else {
-                    std::cout << "Port " << port << " is FILTERED" << std::endl;
+            if (src_ip == target_ip && dst_ip == local_ip) {
+                int port = ntohs(tcp_hdr->th_sport);
+                if (std::find(ports.begin(), ports.end(), port) != ports.end()) {
+                    if ((tcp_hdr->th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK)) {
+                        std::cout << target_ip << " " << port << " tcp open" << std::endl;
+                    } else if (tcp_hdr->th_flags & TH_RST) {
+                        std::cout << target_ip << " " << port << " tcp closed" << std::endl;
+                    } else {
+                        std::cout << target_ip << " " << port << " tcp filtered" << std::endl;
+                    }
+                    responses_received++;
                 }
-                responses_received++;
+            }
+        } 
+        else {
+            struct iphdr *ip_hdr = (struct iphdr*)buffer;
+            int ip_header_len = ip_hdr->ihl * 4;
+            struct tcphdr *tcp_hdr = (struct tcphdr*)(buffer + ip_header_len);
+            src_ip = inet_ntoa(*(struct in_addr*)&ip_hdr->saddr);
+            dst_ip = inet_ntoa(*(struct in_addr*)&ip_hdr->daddr);
+
+            std::cout << "Received: " << src_ip << ":" << ntohs(tcp_hdr->th_sport) 
+                      << " -> " << dst_ip << ":" << ntohs(tcp_hdr->th_dport) 
+                      << " Flags: " << (int)tcp_hdr->th_flags << std::endl;
+
+            if (src_ip == local_ip && dst_ip == target_ip && tcp_hdr->th_flags == TH_SYN) {
+                continue;
+            }
+
+            if (src_ip == target_ip && dst_ip == local_ip) {
+                int port = ntohs(tcp_hdr->th_sport);
+                if (std::find(ports.begin(), ports.end(), port) != ports.end()) {
+                    if ((tcp_hdr->th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK)) {
+                        std::cout << target_ip << " " << port << " tcp open" << std::endl;
+                    } else if (tcp_hdr->th_flags & TH_RST) {
+                        std::cout << target_ip << " " << port << " tcp closed" << std::endl;
+                    } else {
+                        std::cout << target_ip << " " << port << " tcp filtered" << std::endl;
+                    }
+                    responses_received++;
+                }
             }
         }
     }
