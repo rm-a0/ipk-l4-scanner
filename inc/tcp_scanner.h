@@ -113,14 +113,23 @@ private:
     uint16_t calculateChecksum(uint16_t* data, int length);
 
     /**
-     * @brief Calculates checksum for TCP header
+     * @brief Calculates checksum for TCP header (IPv4 version)
      *
-     * Servers as packer function for pseudoheader setup and
+     * Servers as packer function for IPv4 pseudoheader setup and
      * calculate checksum function.
      *
      * @return Calculated checksum
      */
     uint16_t calculateTCPChecksum();
+
+    /**
+     * @brief Calculates checksum for TCP header (IPv6 version)
+     *
+     * Servers as packer function for IPv6 pseudoheader setup and
+     * calculate checksum function.
+     *
+     * @return Calculated checksum
+     */
     uint16_t calculateTCP6Checksum();
 
 public:
@@ -146,7 +155,7 @@ public:
     void sendPackets();
 
     /**
-     * @brief Listens to responsed from ports and output their states
+     * @brief Listens to responses from ports and output their states
      * @return Void
      */
     void listenForResponses();
