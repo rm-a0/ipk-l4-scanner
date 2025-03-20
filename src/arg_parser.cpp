@@ -4,9 +4,10 @@
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <cstring>
+#include <set>
 
 std::vector<int> ArgParser::parsePorts(const std::string& input) {
-    std::vector<int> ports;
+    std::set<int> ports;
     std::string token;
     size_t input_len = input.length();
     size_t idx = 0;
@@ -21,22 +22,24 @@ std::vector<int> ArgParser::parsePorts(const std::string& input) {
         token = input.substr(idx, comma_idx - idx);
 
         // Find dash index (if it exists append all ports in range, otherwise append token)
-        size_t dash_idx = input.find('-'); // token.find if duplicates are allowed
+        size_t dash_idx = token.find('-'); // token.find if duplicates are allowed
         if (dash_idx != std::string::npos) {
             int start = std::stoi(token.substr(0, dash_idx));
             int end = std::stoi(token.substr(dash_idx + 1));
 
             for (int i = start; i <= end; i++) {
-                ports.push_back(i);
+                ports.insert(i);
             }
         }
         else {
-            ports.push_back(std::stoi(token));
+            ports.insert(std::stoi(token));
         }
         idx = comma_idx + 1;
     }
 
-    return ports;
+    // Convert set to vector
+    std::vector<int> v(ports.begin(), ports.end());
+    return v;
 }
 
 ArgParser::ArgParser(int argc, char* argv[]) {
