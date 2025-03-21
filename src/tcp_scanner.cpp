@@ -10,6 +10,7 @@
 #include <cerrno>
 #include <sys/select.h>
 #include <net/if.h>
+#include <netdb.h>
 
 TCPScanner::TCPScanner(const std::string& interface, 
                        const std::string& target, 
@@ -111,6 +112,27 @@ std::string TCPScanner::stringToIPv4(const std::string &str) {
     if (isIPv4(str)) {
         return str;
     }
+
+    // Hostname (www.fit.vutbr.cz)
+    struct addrinfo hints, *res;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+
+    if (getaddrinfo(str.c_str(), nullptr, &hints, &res) == 0) {
+        for (struct addrinfo *p = res; p != nullptr; p = p->ai_next) {
+            if (p->ai_family == AF_INET) {
+                char ip_str[INET_ADDRSTRLEN];
+                struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
+                inet_ntop(AF_INET, &(ipv4->sin_addr), ip_str, INET_ADDRSTRLEN);
+                freeaddrinfo(res);
+                return std::string(ip_str);
+            }
+        }
+        freeaddrinfo(res);
+    }
+
+    // Interface name (lo/enp0s3)
     struct ifaddrs *addrs, *ifa;
     char *addr_str = nullptr;
     if (getifaddrs(&addrs) == -1) {
@@ -118,26 +140,46 @@ std::string TCPScanner::stringToIPv4(const std::string &str) {
         std::exit(EXIT_FAILURE);
     }
     for (ifa = addrs; ifa != nullptr; ifa = ifa->ifa_next) {
-        if (ifa->ifa_name == str && ifa->ifa_addr->sa_family == AF_INET) {
+        if (ifa->ifa_name == str && ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
             struct sockaddr_in* sockaddr_ipv4 = (struct sockaddr_in*)ifa->ifa_addr;
             addr_str = inet_ntoa(sockaddr_ipv4->sin_addr);
             break;
         }
     }
     freeifaddrs(addrs);
-    if (addr_str != nullptr) {
+    if (addr_str) {
         return std::string(addr_str);
     }
-    else {
-        std::cerr << "Error: Could not find IPv4 address for interface " << str << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
+
+    std::cerr << "Error: Could not resolve '" << str << "' to an IPv4 address" << std::endl;
+    std::exit(EXIT_FAILURE);
 }
 
 std::string TCPScanner::stringToIPv6(const std::string &str) {
     if (isIPv6(str)) {
         return str;
     }
+
+    // Hostname (www.fit.vutbr.cz)
+    struct addrinfo hints, *res;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET6;
+    hints.ai_socktype = SOCK_STREAM;
+
+    if (getaddrinfo(str.c_str(), nullptr, &hints, &res) == 0) {
+        for (struct addrinfo *p = res; p != nullptr; p = p->ai_next) {
+            if (p->ai_family == AF_INET6) {
+                char ip_str[INET6_ADDRSTRLEN];
+                struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)p->ai_addr;
+                inet_ntop(AF_INET6, &(ipv6->sin6_addr), ip_str, INET6_ADDRSTRLEN);
+                freeaddrinfo(res);
+                return std::string(ip_str);
+            }
+        }
+        freeaddrinfo(res);
+    }
+
+    // Interface name (lo/enp0s3)
     struct ifaddrs *addrs, *ifa;
     char *addr_str = nullptr;
     if (getifaddrs(&addrs) == -1) {
@@ -145,7 +187,7 @@ std::string TCPScanner::stringToIPv6(const std::string &str) {
         std::exit(EXIT_FAILURE);
     }
     for (ifa = addrs; ifa != nullptr; ifa = ifa->ifa_next) {
-        if (ifa->ifa_name == str && ifa->ifa_addr->sa_family == AF_INET6) {
+        if (ifa->ifa_name == str && ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET6) {
             char ip6_str[INET6_ADDRSTRLEN];
             inet_ntop(AF_INET6, &((struct sockaddr_in6*)ifa->ifa_addr)->sin6_addr, ip6_str, INET6_ADDRSTRLEN);
             addr_str = ip6_str;
@@ -153,13 +195,12 @@ std::string TCPScanner::stringToIPv6(const std::string &str) {
         }
     }
     freeifaddrs(addrs);
-    if (addr_str != nullptr) {
+    if (addr_str) {
         return std::string(addr_str);
     }
-    else {
-        std::cerr << "Error: Could not find IPv6 address for interface " << str << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
+
+    std::cerr << "Error: Could not resolve '" << str << "' to an IPv6 address" << std::endl;
+    std::exit(EXIT_FAILURE);
 }
 
 void TCPScanner::setupIPv4Header(const std::string &source_ip, const std::string &target_ip) {
