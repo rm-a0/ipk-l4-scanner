@@ -1,4 +1,5 @@
 #include "tcp_scanner.h"
+#include "utils.h"
 #include <iostream>
 #include <cstring>
 #include <sys/socket.h>
@@ -18,11 +19,11 @@ TCPScanner::TCPScanner(const std::string& interface,
                        int timeout)
     : interface_name(interface), ports(ports), timeout(timeout) 
 {
-    is_ipv6 = isIPv6(target);
+    is_ipv6 = Utils::isIPv6(target);
     if (is_ipv6) {
         // Convert interface and target to ipv6
-        interface_ip = stringToIPv6(interface);
-        target_ip = stringToIPv6(target);
+        interface_ip = Utils::stringToIPv6(interface);
+        target_ip = Utils::stringToIPv6(target);
         std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
         std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
         // Create raw socket and header for ipv6
@@ -31,8 +32,8 @@ TCPScanner::TCPScanner(const std::string& interface,
     }
     else {
         // Convert interface and target to ipv4
-        interface_ip = stringToIPv4(interface);
-        target_ip = stringToIPv4(target);
+        interface_ip = Utils::stringToIPv4(interface);
+        target_ip = Utils::stringToIPv4(target);
         std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
         std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
         // Create raw socket and header for ipv4
@@ -98,111 +99,6 @@ void TCPScanner::createRawSocket(int type) {
     }
 }
 
-bool TCPScanner::isIPv4(const std::string &str) {
-    struct sockaddr_in sa;
-    return inet_pton(AF_INET, str.c_str(), &(sa.sin_addr)) != 0;
-}
-
-bool TCPScanner::isIPv6(const std::string &str) {
-    struct sockaddr_in6 sa;
-    return inet_pton(AF_INET6, str.c_str(), &(sa.sin6_addr)) != 0;
-}
-
-std::string TCPScanner::stringToIPv4(const std::string &str) {
-    if (isIPv4(str)) {
-        return str;
-    }
-
-    // Hostname (www.fit.vutbr.cz)
-    struct addrinfo hints, *res;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-
-    if (getaddrinfo(str.c_str(), nullptr, &hints, &res) == 0) {
-        for (struct addrinfo *p = res; p != nullptr; p = p->ai_next) {
-            if (p->ai_family == AF_INET) {
-                char ip_str[INET_ADDRSTRLEN];
-                struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
-                inet_ntop(AF_INET, &(ipv4->sin_addr), ip_str, INET_ADDRSTRLEN);
-                freeaddrinfo(res);
-                return std::string(ip_str);
-            }
-        }
-        freeaddrinfo(res);
-    }
-
-    // Interface name (lo/enp0s3)
-    struct ifaddrs *addrs, *ifa;
-    char *addr_str = nullptr;
-    if (getifaddrs(&addrs) == -1) {
-        std::cerr << "Error getting interfaces: " << strerror(errno) << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
-    for (ifa = addrs; ifa != nullptr; ifa = ifa->ifa_next) {
-        if (ifa->ifa_name == str && ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
-            struct sockaddr_in* sockaddr_ipv4 = (struct sockaddr_in*)ifa->ifa_addr;
-            addr_str = inet_ntoa(sockaddr_ipv4->sin_addr);
-            break;
-        }
-    }
-    freeifaddrs(addrs);
-    if (addr_str) {
-        return std::string(addr_str);
-    }
-
-    std::cerr << "Error: Could not resolve '" << str << "' to an IPv4 address" << std::endl;
-    std::exit(EXIT_FAILURE);
-}
-
-std::string TCPScanner::stringToIPv6(const std::string &str) {
-    if (isIPv6(str)) {
-        return str;
-    }
-
-    // Hostname (www.fit.vutbr.cz)
-    struct addrinfo hints, *res;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET6;
-    hints.ai_socktype = SOCK_STREAM;
-
-    if (getaddrinfo(str.c_str(), nullptr, &hints, &res) == 0) {
-        for (struct addrinfo *p = res; p != nullptr; p = p->ai_next) {
-            if (p->ai_family == AF_INET6) {
-                char ip_str[INET6_ADDRSTRLEN];
-                struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)p->ai_addr;
-                inet_ntop(AF_INET6, &(ipv6->sin6_addr), ip_str, INET6_ADDRSTRLEN);
-                freeaddrinfo(res);
-                return std::string(ip_str);
-            }
-        }
-        freeaddrinfo(res);
-    }
-
-    // Interface name (lo/enp0s3)
-    struct ifaddrs *addrs, *ifa;
-    char *addr_str = nullptr;
-    if (getifaddrs(&addrs) == -1) {
-        std::cerr << "Error getting interfaces: " << strerror(errno) << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
-    for (ifa = addrs; ifa != nullptr; ifa = ifa->ifa_next) {
-        if (ifa->ifa_name == str && ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET6) {
-            char ip6_str[INET6_ADDRSTRLEN];
-            inet_ntop(AF_INET6, &((struct sockaddr_in6*)ifa->ifa_addr)->sin6_addr, ip6_str, INET6_ADDRSTRLEN);
-            addr_str = ip6_str;
-            break;
-        }
-    }
-    freeifaddrs(addrs);
-    if (addr_str) {
-        return std::string(addr_str);
-    }
-
-    std::cerr << "Error: Could not resolve '" << str << "' to an IPv6 address" << std::endl;
-    std::exit(EXIT_FAILURE);
-}
-
 void TCPScanner::setupIPv4Header(const std::string &source_ip, const std::string &target_ip) {
     memset(&ip_header, 0, sizeof(ip_header));
     ip_header.ihl = 5;
@@ -215,7 +111,7 @@ void TCPScanner::setupIPv4Header(const std::string &source_ip, const std::string
     ip_header.protocol = IPPROTO_TCP;
     ip_header.saddr = inet_addr(source_ip.c_str());
     ip_header.daddr = inet_addr(target_ip.c_str());
-    ip_header.check = calculateChecksum((uint16_t*)&ip_header, sizeof(struct iphdr));
+    ip_header.check = Utils::calculateChecksum((uint16_t*)&ip_header, sizeof(struct iphdr));
 }
 
 void TCPScanner::setupIPv6Header(const std::string &source_ip, const std::string &target_ip) {
@@ -242,20 +138,6 @@ void TCPScanner::setupTCPHeader(int port) {
     tcp_header.th_sum = is_ipv6 ? calculateTCP6Checksum() : calculateTCPChecksum();
 }
 
-uint16_t TCPScanner::calculateChecksum(uint16_t* data, int length) {
-    uint32_t sum = 0;
-    while (length > 1) {
-        sum += *data++;
-        length -= 2;
-    }
-    if (length == 1) {
-        sum += *(uint8_t*)data;
-    }
-    sum = (sum >> 16) + (sum & 0xFFFF);
-    sum += (sum >> 16);
-    return ~sum;
-}
-
 uint16_t TCPScanner::calculateTCPChecksum() {
     pseudohdr p_header;
     p_header.src_addr = ip_header.saddr;
@@ -269,7 +151,7 @@ uint16_t TCPScanner::calculateTCPChecksum() {
     memcpy(buffer, &p_header, sizeof(pseudohdr));
     memcpy(buffer + sizeof(pseudohdr), &tcp_header, sizeof(struct tcphdr));
 
-    uint16_t checksum = calculateChecksum((uint16_t*)buffer, total_len);
+    uint16_t checksum = Utils::calculateChecksum((uint16_t*)buffer, total_len);
     delete[] buffer;
     return checksum;
 }
@@ -287,7 +169,7 @@ uint16_t TCPScanner::calculateTCP6Checksum() {
     memcpy(buffer, &p_header, sizeof(pseudohdr6));
     memcpy(buffer + sizeof(pseudohdr6), &tcp_header, sizeof(struct tcphdr));
 
-    uint16_t checksum = calculateChecksum((uint16_t*)buffer, total_len);
+    uint16_t checksum = Utils::calculateChecksum((uint16_t*)buffer, total_len);
     delete[] buffer;
     return checksum;
 }
