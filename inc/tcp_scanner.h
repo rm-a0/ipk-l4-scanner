@@ -12,7 +12,7 @@
  * @struct pseudohdr
  * @brief This structure is used for calculating TCP checksum
  */
-struct pseudohdr {
+struct tcp_pseudohdr {
     uint32_t src_addr;
     uint32_t dst_addr;
     uint8_t reserved;
@@ -24,7 +24,7 @@ struct pseudohdr {
  * @struct pseudohdr6
  * @brief This structure is used for calculating TCP checksum
  */
-struct pseudohdr6 {
+struct tcp_pseudohdr6 {
     struct in6_addr src_addr;
     struct in6_addr dst_addr;
     uint32_t tcp_len;

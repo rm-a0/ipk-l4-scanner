@@ -139,17 +139,17 @@ void TCPScanner::setupTCPHeader(int port) {
 }
 
 uint16_t TCPScanner::calculateTCPChecksum() {
-    pseudohdr p_header;
+    tcp_pseudohdr p_header;
     p_header.src_addr = ip_header.saddr;
     p_header.dst_addr = ip_header.daddr;
     p_header.reserved = 0;
     p_header.protocol = IPPROTO_TCP;
     p_header.tcp_len = htons(sizeof(struct tcphdr));
 
-    int total_len = sizeof(pseudohdr) + sizeof(struct tcphdr);
+    int total_len = sizeof(tcp_pseudohdr) + sizeof(struct tcphdr);
     uint8_t* buffer = new uint8_t[total_len];
-    memcpy(buffer, &p_header, sizeof(pseudohdr));
-    memcpy(buffer + sizeof(pseudohdr), &tcp_header, sizeof(struct tcphdr));
+    memcpy(buffer, &p_header, sizeof(tcp_pseudohdr));
+    memcpy(buffer + sizeof(tcp_pseudohdr), &tcp_header, sizeof(struct tcphdr));
 
     uint16_t checksum = Utils::calculateChecksum((uint16_t*)buffer, total_len);
     delete[] buffer;
@@ -157,17 +157,17 @@ uint16_t TCPScanner::calculateTCPChecksum() {
 }
 
 uint16_t TCPScanner::calculateTCP6Checksum() {
-    pseudohdr6 p_header;
+    tcp_pseudohdr6 p_header;
     inet_pton(AF_INET6, interface_ip.c_str(), &p_header.src_addr);
     inet_pton(AF_INET6, target_ip.c_str(), &p_header.dst_addr);
     p_header.tcp_len = htonl(sizeof(struct tcphdr));
     p_header.reserved[0] = p_header.reserved[1] = p_header.reserved[2] = 0;
     p_header.next_header = IPPROTO_TCP;
 
-    int total_len = sizeof(pseudohdr6) + sizeof(struct tcphdr);
+    int total_len = sizeof(tcp_pseudohdr6) + sizeof(struct tcphdr);
     uint8_t* buffer = new uint8_t[total_len];
-    memcpy(buffer, &p_header, sizeof(pseudohdr6));
-    memcpy(buffer + sizeof(pseudohdr6), &tcp_header, sizeof(struct tcphdr));
+    memcpy(buffer, &p_header, sizeof(tcp_pseudohdr6));
+    memcpy(buffer + sizeof(tcp_pseudohdr6), &tcp_header, sizeof(struct tcphdr));
 
     uint16_t checksum = Utils::calculateChecksum((uint16_t*)buffer, total_len);
     delete[] buffer;
