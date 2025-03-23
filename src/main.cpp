@@ -19,5 +19,6 @@ int main(int argc, char* argv[]) {
                             parser.getUdpPorts(),
                             parser.getTimeout());
     udp_scanner.sendPackets();
+    udp_scanner.listenForResponses();
     return 0;
 }

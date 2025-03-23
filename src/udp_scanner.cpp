@@ -6,190 +6,127 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <sys/select.h>
-#include <net/if.h>
-#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/udp.h>
 #include <netinet/icmp6.h>
+#include <netinet/ip_icmp.h>
 
+// Define missing constants for Nix environment
+#ifndef ICMP_DEST_UNREACH
+#define ICMP_DEST_UNREACH 3  // IPv4 "Destination Unreachable" type
+#endif
+#ifndef ICMP_PORT_UNREACH
+#define ICMP_PORT_UNREACH 3  // IPv4 "Port Unreachable" code
+#endif
 
 UDPScanner::UDPScanner(const std::string& interface,
                        const std::string& target,
                        const std::vector<int>& ports,
                        int timeout)
-    : interface_name(interface), ports(ports), timeout(timeout)
-{
-    is_ipv6 = Utils::isIPv6(target);
-    if (is_ipv6) {
-        interface_ip = Utils::stringToIPv6(interface);
-        target_ip = Utils::stringToIPv6(target);
-        std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
-        std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
-        createRawSocket(AF_INET6);
-        setupIPv6Header(interface_ip, target_ip);
-    } else {
-        interface_ip = Utils::stringToIPv4(interface);
-        target_ip = Utils::stringToIPv4(target);
-        std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
-        std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
-        createRawSocket(AF_INET);
-        setupIPv4Header(interface_ip, target_ip);
+    : interface_name(interface), ports(ports), timeout(timeout), 
+      udp_socket(-1), icmp_socket(-1) {
+    interface_ip = Utils::stringToIPv4(interface);
+    target_ip = Utils::stringToIPv4(target);
+    std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
+    std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
+
+    udp_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (udp_socket < 0) {
+        std::cerr << "Error creating UDP socket: " << strerror(errno) << std::endl;
+        std::exit(EXIT_FAILURE);
     }
+
+    icmp_socket = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+    if (icmp_socket < 0) {
+        std::cerr << "Error creating ICMP socket: " << strerror(errno) << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+
+    // Set timeout for ICMP socket
+    struct timeval tv;
+    tv.tv_sec = timeout / 1000;
+    tv.tv_usec = (timeout % 1000) * 1000;
+    if (setsockopt(icmp_socket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+        std::cerr << "Error setting ICMP socket timeout: " << strerror(errno) << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+
+    // Initialize pending ports
     pending_ports.insert(ports.begin(), ports.end());
 }
 
 UDPScanner::~UDPScanner() {
-    if (raw_socket >= 0) {
-        close(raw_socket);
+    if (udp_socket >= 0) {
+        close(udp_socket);
     }
-}
-
-void UDPScanner::createRawSocket(int type) {
-    raw_socket = socket(type, SOCK_RAW, IPPROTO_UDP);
-    if (raw_socket < 0) {
-        std::cerr << "Error creating raw socket: " << strerror(errno) << std::endl;
-        std::exit(EXIT_FAILURE);
+    if (icmp_socket >= 0) {
+        close(icmp_socket);
     }
-
-    if (is_ipv6) {
-        struct sockaddr_in6 sin6;
-        sin6.sin6_family = AF_INET6;
-        inet_pton(AF_INET6, interface_ip.c_str(), &sin6.sin6_addr);
-        sin6.sin6_port = 0;
-        if (IN6_IS_ADDR_LINKLOCAL(&sin6.sin6_addr)) {
-            sin6.sin6_scope_id = if_nametoindex(interface_name.c_str());
-            if (sin6.sin6_scope_id == 0) {
-                std::cerr << "Error getting interface index: " << strerror(errno) << std::endl;
-                std::exit(EXIT_FAILURE);
-            }
-        } else {
-            sin6.sin6_scope_id = 0;
-        }
-        if (bind(raw_socket, (struct sockaddr*)&sin6, sizeof(sin6)) < 0) {
-            std::cerr << "Error binding socket: " << strerror(errno) << std::endl;
-            std::exit(EXIT_FAILURE);
-        }
-    } else {
-        struct sockaddr_in sin;
-        sin.sin_family = AF_INET;
-        sin.sin_addr.s_addr = inet_addr(interface_ip.c_str());
-        sin.sin_port = 0;
-        if (bind(raw_socket, (struct sockaddr*)&sin, sizeof(sin)) < 0) {
-            std::cerr << "Error binding socket: " << strerror(errno) << std::endl;
-            std::exit(EXIT_FAILURE);
-        }
-    }
-
-    int one = 1;
-    if (setsockopt(raw_socket, is_ipv6 ? IPPROTO_IPV6 : IPPROTO_IP, IP_HDRINCL, &one, sizeof(one)) < 0) {
-        std::cerr << "Error setting IP_HDRINCL: " << strerror(errno) << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
-}
-
-void UDPScanner::setupIPv4Header(const std::string &source_ip, const std::string &target_ip) {
-    memset(&ip_header, 0, sizeof(ip_header));
-    ip_header.ihl = 5;
-    ip_header.version = 4;
-    ip_header.tos = 0;
-    ip_header.tot_len = htons(sizeof(struct iphdr) + sizeof(struct udphdr));
-    ip_header.id = htonl(54321);
-    ip_header.frag_off = 0;
-    ip_header.ttl = 255;
-    ip_header.protocol = IPPROTO_UDP;
-    ip_header.saddr = inet_addr(source_ip.c_str());
-    ip_header.daddr = inet_addr(target_ip.c_str());
-    ip_header.check = Utils::calculateChecksum((uint16_t*)&ip_header, sizeof(struct iphdr));
-}
-
-void UDPScanner::setupIPv6Header(const std::string &source_ip, const std::string &target_ip) {
-    memset(&ip6_header, 0, sizeof(ip6_header));
-    ip6_header.ip6_flow = htonl(0x60000000);
-    ip6_header.ip6_plen = htons(sizeof(struct udphdr));
-    ip6_header.ip6_nxt = IPPROTO_UDP;
-    ip6_header.ip6_hlim = 255;
-    inet_pton(AF_INET6, source_ip.c_str(), &ip6_header.ip6_src);
-    inet_pton(AF_INET6, target_ip.c_str(), &ip6_header.ip6_dst);
-}
-
-void UDPScanner::setupUDPHeader(int port) {
-    memset(&udp_header, 0, sizeof(udp_header));
-    udp_header.source = htons(12345);
-    udp_header.dest = htons(port);
-    udp_header.len = htons(sizeof(struct udphdr));
-    udp_header.check = is_ipv6 ? calculateUDP6Checksum() : calculateUDPChecksum();
-}
-
-uint16_t UDPScanner::calculateUDPChecksum() {
-    udp_pseudohdr p_header;
-    p_header.src_addr = ip_header.saddr;
-    p_header.dst_addr = ip_header.daddr;
-    p_header.zero = 0;
-    p_header.protocol = IPPROTO_UDP;
-    p_header.udp_len = udp_header.len;
-
-    int total_len = sizeof(udp_pseudohdr) + sizeof(struct udphdr);
-    std::vector<uint8_t> buffer(total_len);
-    memcpy(buffer.data(), &p_header, sizeof(udp_pseudohdr));
-    memcpy(buffer.data() + sizeof(udp_pseudohdr), &udp_header, sizeof(struct udphdr));
-
-    return Utils::calculateChecksum((uint16_t*)buffer.data(), total_len);
-}
-
-uint16_t UDPScanner::calculateUDP6Checksum() {
-    udp_pseudohdr6 p_header;
-    inet_pton(AF_INET6, interface_ip.c_str(), &p_header.src_addr);
-    inet_pton(AF_INET6, target_ip.c_str(), &p_header.dst_addr);
-    p_header.udp_len = htonl(sizeof(struct udphdr));
-    p_header.zero[0] = p_header.zero[1] = p_header.zero[2] = 0;
-    p_header.next_header = IPPROTO_UDP;
-
-    int total_len = sizeof(udp_pseudohdr6) + sizeof(struct udphdr);
-    std::vector<uint8_t> buffer(total_len);
-    memcpy(buffer.data(), &p_header, sizeof(udp_pseudohdr6));
-    memcpy(buffer.data() + sizeof(udp_pseudohdr6), &udp_header, sizeof(struct udphdr));
-
-    return Utils::calculateChecksum((uint16_t*)buffer.data(), total_len);
 }
 
 void UDPScanner::sendPackets() {
-    if (is_ipv6) {
-        struct sockaddr_in6 dest_info;
-        memset(&dest_info, 0, sizeof(dest_info));
-        dest_info.sin6_family = AF_INET6;
-        inet_pton(AF_INET6, target_ip.c_str(), &dest_info.sin6_addr);
-        dest_info.sin6_port = 0;
+    struct sockaddr_in target_addr;
+    memset(&target_addr, 0, sizeof(target_addr));
+    target_addr.sin_family = AF_INET;
+    inet_pton(AF_INET, target_ip.c_str(), &target_addr.sin_addr);
 
-        for (int port : ports) {
-            setupUDPHeader(port);
-            int packet_size = sizeof(struct ip6_hdr) + sizeof(struct udphdr);
-            std::vector<uint8_t> packet(packet_size);
-            memcpy(packet.data(), &ip6_header, sizeof(struct ip6_hdr));
-            memcpy(packet.data() + sizeof(struct ip6_hdr), &udp_header, sizeof(struct udphdr));
+    for (int port : ports) {
+        target_addr.sin_port = htons(port);
 
-            if (sendto(raw_socket, packet.data(), packet_size, 0, (struct sockaddr*)&dest_info, sizeof(dest_info)) < 0) {
-                std::cerr << "Error sending packet to port " << port << ": " << strerror(errno) << std::endl;
-            } else {
-                std::cout << "Packet sent to " << target_ip << " on port " << port << std::endl;
-            }
-        }
-    } else {
-        struct sockaddr_in dest_info;
-        memset(&dest_info, 0, sizeof(dest_info));
-        dest_info.sin_family = AF_INET;
-        dest_info.sin_addr.s_addr = ip_header.daddr;
-
-        for (int port : ports) {
-            setupUDPHeader(port);
-            int packet_size = sizeof(struct iphdr) + sizeof(struct udphdr);
-            std::vector<uint8_t> packet(packet_size);
-            memcpy(packet.data(), &ip_header, sizeof(struct iphdr));
-            memcpy(packet.data() + sizeof(struct iphdr), &udp_header, sizeof(struct udphdr));
-
-            if (sendto(raw_socket, packet.data(), packet_size, 0, (struct sockaddr*)&dest_info, sizeof(dest_info)) < 0) {
-                std::cerr << "Error sending packet to port " << port << ": " << strerror(errno) << std::endl;
-            } else {
-                std::cout << "Packet sent to " << target_ip << " on port " << port << std::endl;
-            }
+        // Send a UDP packet to the target port
+        char buffer[] = "UDP Probe";
+        if (sendto(udp_socket, buffer, sizeof(buffer), 0, (struct sockaddr*)&target_addr, sizeof(target_addr)) < 0) {
+            std::cerr << "Error sending UDP packet to port " << port << ": " << strerror(errno) << std::endl;
+        } else {
+            std::cout << "Packet sent to " << target_ip << " on port " << port << std::endl;
         }
     }
 }
 
+void UDPScanner::listenForResponses() {
+    char recv_buffer[4096];
+    struct sockaddr_in src_addr;
+    socklen_t src_addr_len = sizeof(src_addr);
+
+    int responses_expected = ports.size();
+    int responses_received = 0;
+
+    while (responses_received < responses_expected) {
+        int packet_size = recvfrom(icmp_socket, recv_buffer, sizeof(recv_buffer), 0, 
+                                   (struct sockaddr*)&src_addr, &src_addr_len);
+        if (packet_size < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                // Timeout occurred, report remaining ports as open|filtered
+                for (int port : pending_ports) {
+                    std::cout << target_ip << " " << port << " udp open|filtered" << std::endl;
+                }
+                break;
+            } else {
+                std::cerr << "Error receiving ICMP packet: " << strerror(errno) << std::endl;
+                break;
+            }
+        }
+
+        // Parse ICMP packet
+        struct iphdr* ip_hdr = (struct iphdr*)recv_buffer;
+        if (ip_hdr->protocol == IPPROTO_ICMP) {
+            int ip_hdr_len = ip_hdr->ihl * 4;
+            struct icmphdr* icmp_hdr = (struct icmphdr*)(recv_buffer + ip_hdr_len);
+            if (packet_size < (ip_hdr_len + sizeof(struct icmphdr) + sizeof(struct udphdr))) {
+                continue; // Packet too small
+            }
+
+            if (icmp_hdr->type == ICMP_DEST_UNREACH && icmp_hdr->code == ICMP_PORT_UNREACH) {
+                // Extract the original UDP header from the ICMP payload
+                struct iphdr* orig_ip_hdr = (struct iphdr*)((char*)icmp_hdr + sizeof(struct icmphdr));
+                struct udphdr* udp_hdr = (struct udphdr*)((char*)orig_ip_hdr + (orig_ip_hdr->ihl * 4));
+                int port = ntohs(udp_hdr->dest);
+
+                if (pending_ports.erase(port)) {
+                    std::cout << target_ip << " " << port << " udp closed" << std::endl;
+                    responses_received++;
+                }
+            }
+        }
+    }
+}
