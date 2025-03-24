@@ -20,6 +20,10 @@ private:
     std::vector<int> ports;
     std::set<int> pending_ports;
     int timeout;
+    bool is_ipv6;
+    
+    void createUdpSocket(int type);
+    void createIcmpSocket(int type);
 
 public:
     UDPScanner(const std::string& interface, const std::string& target, 
