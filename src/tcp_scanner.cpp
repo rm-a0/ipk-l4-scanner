@@ -26,8 +26,6 @@ TCPScanner::TCPScanner(const std::string& interface,
         // Convert interface and target to ipv4
         interface_ip = Utils::stringToIPv4(interface);
         target_ip = Utils::stringToIPv4(target);
-        std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
-        std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
         // Create raw socket and header for ipv4
         createRawSocket(AF_INET);
         setupIPv4Header(interface_ip, target_ip);
@@ -39,8 +37,6 @@ TCPScanner::TCPScanner(const std::string& interface,
         // Convert interface and target to ipv6
         interface_ip = Utils::stringToIPv6(interface);
         target_ip = Utils::stringToIPv6(target);
-        std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
-        std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
         // Create raw socket and header for ipv6
         createRawSocket(AF_INET6);
         setupIPv6Header(interface_ip, target_ip);
@@ -51,8 +47,6 @@ TCPScanner::TCPScanner(const std::string& interface,
         // Convert interface and target to ipv6
         interface_ip = Utils::stringToIPv6(interface);
         target_ip = Utils::stringToIPv6(target);
-        std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
-        std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
         // Create raw socket and header for ipv6
         createRawSocket(AF_INET6);
         setupIPv6Header(interface_ip, target_ip);
@@ -63,8 +57,6 @@ TCPScanner::TCPScanner(const std::string& interface,
         // Convert interface and target to ipv4
         interface_ip = Utils::stringToIPv4(interface);
         target_ip = Utils::stringToIPv4(target);
-        std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
-        std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
         // Create raw socket and header for ipv4
         createRawSocket(AF_INET);
         setupIPv4Header(interface_ip, target_ip);
@@ -221,6 +213,7 @@ void TCPScanner::sendPackets() {
 
             if (sendto(raw_socket, packet.data(), packet_size, 0, (struct sockaddr *)&dest_info, sizeof(dest_info)) < 0) {
                 std::cerr << "Error sending packet to port " << port << ": " << strerror(errno) << std::endl;
+                std::exit(EXIT_FAILURE);
             }
         }
     }
@@ -293,10 +286,6 @@ void TCPScanner::listenForResponses() {
             src_ip = src_str;
             dst_ip = dst_str;
 
-            std::cout << "Received: " << src_ip << ":" << ntohs(tcp_hdr->th_sport) 
-                      << " -> " << dst_ip << ":" << ntohs(tcp_hdr->th_dport) 
-                      << " Flags: " << (int)tcp_hdr->th_flags << std::endl;
-
             if (src_ip == local_ip && dst_ip == target_ip && tcp_hdr->th_flags == TH_SYN) {
                 continue;
             }
@@ -323,10 +312,6 @@ void TCPScanner::listenForResponses() {
             struct tcphdr *tcp_hdr = (struct tcphdr*)(buffer.data() + ip_header_len);
             src_ip = inet_ntoa(*(struct in_addr*)&ip_hdr->saddr);
             dst_ip = inet_ntoa(*(struct in_addr*)&ip_hdr->daddr);
-
-            std::cout << "Received: " << src_ip << ":" << ntohs(tcp_hdr->th_sport) 
-                      << " -> " << dst_ip << ":" << ntohs(tcp_hdr->th_dport) 
-                      << " Flags: " << (int)tcp_hdr->th_flags << std::endl;
 
             if (src_ip == local_ip && dst_ip == target_ip && tcp_hdr->th_flags == TH_SYN) {
                 continue;

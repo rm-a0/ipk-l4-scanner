@@ -24,7 +24,6 @@
 #define ICMP6_DST_UNREACH_PORT 4
 #endif
 
-
 UDPScanner::UDPScanner(const std::string& interface,
                        const std::string& target,
                        const std::vector<int>& ports,
@@ -38,8 +37,6 @@ UDPScanner::UDPScanner(const std::string& interface,
         // Convert interface and target to ipv4
         interface_ip = Utils::stringToIPv4(interface);
         target_ip = Utils::stringToIPv4(target);
-        std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
-        std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
         // Create udp socket and icmp for ipv6
         createUDPSocket(AF_INET);
         createICMPSocket(AF_INET);
@@ -51,8 +48,6 @@ UDPScanner::UDPScanner(const std::string& interface,
         // Convert interface and target to ipv6
         interface_ip = Utils::stringToIPv6(interface);
         target_ip = Utils::stringToIPv6(target);
-        std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
-        std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
         // Create udp socket and icmp for ipv6
         createUDPSocket(AF_INET6);
         createICMPSocket(AF_INET6);
@@ -63,8 +58,6 @@ UDPScanner::UDPScanner(const std::string& interface,
         // Convert interface and target to ipv6
         interface_ip = Utils::stringToIPv6(interface);
         target_ip = Utils::stringToIPv6(target);
-        std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
-        std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
         // Create udp socket and icmp for ipv6
         createUDPSocket(AF_INET6);
         createICMPSocket(AF_INET6);
@@ -75,8 +68,6 @@ UDPScanner::UDPScanner(const std::string& interface,
         // Convert interface and target to ipv4
         interface_ip = Utils::stringToIPv4(interface);
         target_ip = Utils::stringToIPv4(target);
-        std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
-        std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
         // Create udp socket and icmp for ipv6
         createUDPSocket(AF_INET);
         createICMPSocket(AF_INET);
@@ -215,9 +206,7 @@ void UDPScanner::sendPackets() {
 
             if (sendto(udp_socket, &udp_header, sizeof(udp_header), 0, (struct sockaddr*)&target_addr, sizeof(target_addr)) < 0) {
                 std::cerr << "Error sending UDP packet to port " << port << ": " << strerror(errno) << std::endl;
-            }
-            else {
-                std::cout << "Packet sent to " << target_ip << " on port " << port << std::endl;
+                std::exit(EXIT_FAILURE);
             }
         }
     } else {
@@ -232,9 +221,7 @@ void UDPScanner::sendPackets() {
 
             if (sendto(udp_socket, &udp_header, sizeof(udp_header), 0, (struct sockaddr*)&target_addr, sizeof(target_addr)) < 0) {
                 std::cerr << "Error sending UDP packet to port " << port << ": " << strerror(errno) << std::endl;
-            }
-            else {
-                std::cout << "Packet sent to " << target_ip << " on port " << port << std::endl;
+                std::exit(EXIT_FAILURE);
             }
         }
     }
