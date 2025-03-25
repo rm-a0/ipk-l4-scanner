@@ -19,18 +19,10 @@ TCPScanner::TCPScanner(const std::string& interface,
                        int timeout)
     : interface_name(interface), ports(ports), timeout(timeout) 
 {
-    is_ipv6 = Utils::isIPv6(target);
-    if (is_ipv6) {
-        // Convert interface and target to ipv6
-        interface_ip = Utils::stringToIPv6(interface);
-        target_ip = Utils::stringToIPv6(target);
-        std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
-        std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
-        // Create raw socket and header for ipv6
-        createRawSocket(AF_INET6);
-        setupIPv6Header(interface_ip, target_ip);
-    }
-    else {
+    bool scan_both = !Utils::isIPv6(target) && !Utils::isIPv6(interface) && !Utils::isIPv4(target) && !Utils::isIPv4(interface);
+    is_ipv6 = Utils::isIPv6(target) || Utils::isIPv6(interface);
+    pending_ports.insert(ports.begin(), ports.end());
+    if (scan_both) {
         // Convert interface and target to ipv4
         interface_ip = Utils::stringToIPv4(interface);
         target_ip = Utils::stringToIPv4(target);
@@ -39,9 +31,46 @@ TCPScanner::TCPScanner(const std::string& interface,
         // Create raw socket and header for ipv4
         createRawSocket(AF_INET);
         setupIPv4Header(interface_ip, target_ip);
+        sendPackets();
+        listenForResponses();
+
+        is_ipv6 = true;
+        pending_ports.insert(ports.begin(), ports.end());
+        // Convert interface and target to ipv6
+        interface_ip = Utils::stringToIPv6(interface);
+        target_ip = Utils::stringToIPv6(target);
+        std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
+        std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
+        // Create raw socket and header for ipv6
+        createRawSocket(AF_INET6);
+        setupIPv6Header(interface_ip, target_ip);
+        sendPackets();
+        listenForResponses();
     }
-    // Initialize pending_ports with all ports to scan
-    pending_ports.insert(ports.begin(), ports.end());
+    else if (is_ipv6 && !scan_both) {
+        // Convert interface and target to ipv6
+        interface_ip = Utils::stringToIPv6(interface);
+        target_ip = Utils::stringToIPv6(target);
+        std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
+        std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
+        // Create raw socket and header for ipv6
+        createRawSocket(AF_INET6);
+        setupIPv6Header(interface_ip, target_ip);
+        sendPackets();
+        listenForResponses();
+    }
+    else if (!is_ipv6 && !scan_both) {
+        // Convert interface and target to ipv4
+        interface_ip = Utils::stringToIPv4(interface);
+        target_ip = Utils::stringToIPv4(target);
+        std::cout << "Interface (" << interface << ") IP: " << interface_ip << std::endl;
+        std::cout << "Target (" << target << ") IP: " << target_ip << std::endl;
+        // Create raw socket and header for ipv4
+        createRawSocket(AF_INET);
+        setupIPv4Header(interface_ip, target_ip);
+        sendPackets();
+        listenForResponses();
+    }
 }
 
 TCPScanner::~TCPScanner() {

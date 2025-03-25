@@ -12,13 +12,9 @@ int main(int argc, char* argv[]) {
                             parser.getTarget(),
                             parser.getTcpPorts(),
                             parser.getTimeout());
-    tcp_scanner.sendPackets();
-    tcp_scanner.listenForResponses();
     UDPScanner udp_scanner( parser.getInterface(),
                             parser.getTarget(),
                             parser.getUdpPorts(),
                             parser.getTimeout());
-    udp_scanner.sendPackets();
-    udp_scanner.listenForResponses();
     return 0;
 }
