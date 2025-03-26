@@ -39,18 +39,63 @@ private:
     int timeout;
     struct udphdr udp_header;
 
+    /**
+     * @brief Creates UDP socket for scanning
+     * @param type Either AF_INET for IPv4 or AF_INET6
+     * @return Void
+     */
     void createUDPSocket(int type);
+
+    /**
+     * @brief Creates ICMP socket for response capture 
+     * @param type Either AF_INET for IPv4 or AF_INET6
+     * @return Void
+     */
     void createICMPSocket(int type);
-    void processUDPResponse();
-    void processICMPResponse();
+
+    /**
+     * @brief Sets up UDP header
+     * @param port Specific port
+     * @return void
+     */
     void setupUDPHeader(int port);
+
+    /**
+     * @brief Calculates checksum for UDP header (IPv4 version)
+     * @return Calculated checksum
+     */
     uint16_t calculateUDP4Checksum();
+
+    /**
+     * @brief Calculates checksum for UDP header (IPv6 version)
+     * @return Calculated checksum
+     */
     uint16_t calculateUDP6Checksum();
 public:
+    /**
+     * @brief Constructor for UDPScanner class
+     * @param interface Name of the interface
+     * @param target Name or IP of the target
+     * @param ports Ports to be scanned
+     * @param timeout Timeout in ms
+     */
     UDPScanner(const std::string& interface, const std::string& target, 
                const std::vector<int>& ports, int timeout);
+
+    /**
+     * @brief Destructor for UDPScanner class
+     */
     ~UDPScanner();
+    /**
+     * @brief Sends packets to all ports
+     * @return Void
+     */
     void sendPackets();
+
+    /**
+     * @brief Listens to responses from ports and output their states
+     * @return Void
+     */
     void listenForResponses();
 };
 

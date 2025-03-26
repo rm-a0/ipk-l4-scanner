@@ -105,7 +105,7 @@ public:
      * @brief Constructor for TCPScanner class
      * @param interface Name of the interface
      * @param target Name or IP of the target
-     * @param ports Ports to be scanner
+     * @param ports Ports to be scanned
      * @param timeout Timeout in ms
      */
     TCPScanner(const std::string& interface, const std::string& target, 
