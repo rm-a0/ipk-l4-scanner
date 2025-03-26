@@ -4,6 +4,21 @@ A network scanner for TCP and UDP port scanning supporting IPv4/IPv6, written in
 
 ## Table of Contents
 - [Summary](#summary)
+- [Theory](#theory)
+  - [TCP SYN Scanning](#tcp-syn-scanning)
+  - [UDP Scanning](#udp-scanning)
+  - [Raw Socket Programming](#raw-socket-programming)
+- [How to Use](#how-to-use)
+- [Code Structure](#code-structure)
+  - [Key Classes and Namespaces](#key-classes-and-namespaces)
+- [Flow Diagram](#flow-diagram)
+- [Testing](#testing)
+  - [Automated Tests](#automated-tests)
+    - [Unit Tests](#unit-tests)
+    - [Final Tests](#final-tests)
+  - [Manual Testing](#manual-testing)
+    - [Testing in CLI](#testing-in-cli)
+    - [Testing using Wireshark](#testing-using-wireshark)
 
 ## Summary
 This application scans target hosts for open, closed, or filtered TCP/UDP ports. Key features:
@@ -72,10 +87,11 @@ This application scans target hosts for open, closed, or filtered TCP/UDP ports.
 ## Flow Diagram
 ![Flow Chart](./doc/flow_chart.png)
 
-## Testing Methodology
+## Testing
 ### Automated Tests
 #### Unit Tests
-#### 
+
+#### Final Tests
 
 ### Manual Testing
 #### Testing in CLI
@@ -92,3 +108,12 @@ This application scans target hosts for open, closed, or filtered TCP/UDP ports.
   127.0.0.1 67 udp open
   ```
 #### Testing using Wireshark
+
+## Bibliography
+- Braden, R. *Requirements for Internet Hosts* [online]. RFC 1122. Internet Engineering Task Force (IETF), October 1989. Available at: https://tools.ietf.org/html/rfc1122. [cit. 2025-03-26].
+
+- Conta, A. and Deering, S. *Internet Control Message Protocol (ICMPv6) for the Internet Protocol Version 6 (IPv6) Specification* [online]. RFC 4443. Internet Engineering Task Force (IETF), March 2006. Available at: https://tools.ietf.org/html/rfc4443. [cit. 2025-03-26].
+
+- Deering, S. and Hinden, R. *Internet Protocol, Version 6 (IPv6) Specification* [online]. RFC 8200. Internet Engineering Task Force (IETF), July 2017. Available at: https://tools.ietf.org/html/rfc8200. [cit. 2025-03-26].
+
+- Postel, J. *Transmission Control Protocol* [online]. RFC 793. Internet Engineering Task Force (IETF), September 1981. Available at: https://tools.ietf.org/html/rfc793. [cit. 2025-03-26].
