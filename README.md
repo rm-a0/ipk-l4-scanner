@@ -19,6 +19,8 @@ A network scanner for TCP and UDP port scanning supporting IPv4/IPv6, written in
   - [Manual Testing](#manual-testing)
     - [Testing in CLI](#testing-in-cli)
     - [Testing using Wireshark](#testing-using-wireshark)
+- [Additional Functionality](#additional-functionality)
+- [Bibliography](#bibliography)
 
 ## Summary
 This application scans target hosts for open, closed, or filtered TCP/UDP ports. Key features:
@@ -90,6 +92,10 @@ This application scans target hosts for open, closed, or filtered TCP/UDP ports.
 ## Testing
 ### Automated Tests
 #### Unit Tests
+In `test/unit_tests` are located all scipts used for testing different parts of the scanner during developement
+such ass interface listing, checksum calculation and string to IP conversion. Unfortunately these tests were designed only for
+verifying individual components during specific development phases and they contain hardcoded values matching the implementation
+state at the time of creation and are only included for archival pourposes.
 
 #### Final Tests
 
@@ -108,6 +114,8 @@ This application scans target hosts for open, closed, or filtered TCP/UDP ports.
   127.0.0.1 67 udp open
   ```
 #### Testing using Wireshark
+
+## Additional Functionality
 
 ## Bibliography
 - Braden, R. *Requirements for Internet Hosts* [online]. RFC 1122. Internet Engineering Task Force (IETF), October 1989. Available at: https://tools.ietf.org/html/rfc1122. [cit. 2025-03-26].
