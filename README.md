@@ -113,7 +113,16 @@ state at the time of creation and are only included for archival pourposes.
   127.0.0.1 53 udp closed
   127.0.0.1 67 udp open
   ```
-#### Testing using Wireshark
+#### Testing with Wireshark
+To verify the behavior of the IPK Network Scanner (ipk-l4-scan), Wireshark was employed to monitor packets sent to target hosts and their 
+corresponding responses. With Wireshark capturing traffic, the scanner binary was executed, allowing for detailed manual inspection 
+of each packet. This process enabled comparison of the observed responses against expected protocol behavior, ensuring accurate validation 
+of the scanner’s functionality.
+
+<div style="display: flex; justify-content: space-around;">
+  <img src="/doc/wireshark_01.png" alt="Wireshark_01" width="45%">
+  <img src="/doc/wireshark_02.png" alt="Wireshark_02" width="45%">
+</div>
 
 ## Additional Functionality
 
