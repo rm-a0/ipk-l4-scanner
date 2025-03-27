@@ -125,12 +125,19 @@ verifying individual components during specific development phases and they cont
 state at the time of creation and are only included for archival pourposes.
 
 #### Final Tests
+In `test/final_tests` are located all scripts used for final udp and tcp testing. These scripts perform simple tests for each protocol
+and verify basic scanner functionality. Advanced functionality (such as large number of ports, force opening/closing of ports) 
+was tested manually since these operations were more dangerous and required separate container or virtual environemnt to be executed.
 
 ### Manual Testing
 #### Testing in CLI
+Command-line testing was performed using tools like ufw and iptables to manage and verify firewall rules. 
+These commands were used to open, close, and inspect ports for security and connectivity testing.
 - **Example Command**:  
   ```
-  ./ipk-l4-scan -i eth0 --pt 21,22,143 --pu 53,67 localhost
+  sudo ufw deny 21/tcp
+  sudo ufw allow 22/tcp
+  sudo ./ipk-l4-scan -i lo --pt 21,22,143 --pu 53,67 localhost
   ```
 - **Expected Output**:  
   ```
@@ -152,6 +159,10 @@ of the scanner’s functionality.
 </div>
 
 ## Additional Functionality
+Beyond the task requirements, the implementation includes:
+- Support for flexible port ranges (e.g., -t 1,2-10,11,12-18 as a valid argument).
+- The interface argument can also accept an IP address.
+- Scanning behavior is determined by the interface/hostname format, automatically selecting the corresponding IP version (default is IPv4).
 
 ## Bibliography
 - Braden, R. *Requirements for Internet Hosts* [online]. RFC 1122. Internet Engineering Task Force (IETF), October 1989. Available at: https://tools.ietf.org/html/rfc1122. [cit. 2025-03-26].
