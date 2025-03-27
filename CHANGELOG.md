@@ -11,4 +11,4 @@
 ### Known Limitations  
 - **Inconsistent IPv6 Support**: IPv6 scanning may behave differently across various systems due to network stack differences and system-specific configurations. Some machines may experience unreliable detection or incomplete scanning results.  
 - **Limited UDP Detection:** UDP scanning relies on response behavior, which varies by service. Since many UDP services do not respond to closed port probes, accurate detection can be challenging. Additionally, due to automated test constraints, the scanner assumes a port is open if no response is received within the timeout period, which may lead to false positives.
-- **Permission Requirements**: Raw socket creation requires elevated permissions (`sudo`).  
+- **Permission Requirements**: Raw socket creation requires elevated permissions (`sudo` and root privieges).  

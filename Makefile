@@ -23,6 +23,8 @@ $(BUILDDIR):
 
 run: $(TARGET)
 	./$(TARGET)
+zip:
+	zip -r xrepcim00.zip . -x ".*" "build/*" "ipk-l4-scan"
 
 clean:
 	rm -rf $(BUILDDIR) $(TARGET)
