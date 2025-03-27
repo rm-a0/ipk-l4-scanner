@@ -255,28 +255,30 @@ void TCPScanner::listenForResponses() {
         char src_str[INET6_ADDRSTRLEN], dst_str[INET6_ADDRSTRLEN];
         if (is_ipv6) {
             struct ip6_hdr *ip6_hdr = (struct ip6_hdr*)buffer.data();
-            int ip_header_len = sizeof(struct ip6_hdr);
-            struct tcphdr *tcp_hdr = (struct tcphdr*)(buffer.data() + ip_header_len);
+            struct tcphdr *tcp_hdr = (struct tcphdr*)(buffer.data() + sizeof(struct ip6_hdr));
+
+            // Get source/dest IPs
             inet_ntop(AF_INET6, &ip6_hdr->ip6_src, src_str, INET6_ADDRSTRLEN);
             inet_ntop(AF_INET6, &ip6_hdr->ip6_dst, dst_str, INET6_ADDRSTRLEN);
             src_ip = src_str;
             dst_ip = dst_str;
 
-            if (src_ip == local_ip && dst_ip == target_ip && tcp_hdr->th_flags == TH_SYN) {
+            // Skip outgoing packets
+            if (src_ip == local_ip && tcp_hdr->th_flags == TH_SYN) {
                 continue;
             }
 
-            if (src_ip == target_ip && dst_ip == local_ip) {
+            // Process responses from target
+            if (src_ip == target_ip) {
                 int port = ntohs(tcp_hdr->th_sport);
-                if (pending_ports.erase(port)) {
-                    if ((tcp_hdr->th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK)) {
+                if (pending_ports.count(port)) {
+                    if ((tcp_hdr->th_flags & (TH_SYN|TH_ACK)) == (TH_SYN|TH_ACK)) {
                         std::cout << target_ip << " " << port << " tcp open" << std::endl;
+                        pending_ports.erase(port);
                     }
                     else if (tcp_hdr->th_flags & TH_RST) {
                         std::cout << target_ip << " " << port << " tcp closed" << std::endl;
-                    }
-                    else {
-                        std::cout << target_ip << " " << port << " tcp filtered" << std::endl;
+                        pending_ports.erase(port);
                     }
                     responses_received++;
                 }
