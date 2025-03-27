@@ -5,9 +5,14 @@ A network scanner for TCP and UDP port scanning supporting IPv4/IPv6, written in
 ## Table of Contents
 - [Summary](#summary)
 - [Theory](#theory)
-  - [TCP SYN Scanning](#tcp-syn-scanning)
-  - [UDP Scanning](#udp-scanning)
-  - [Raw Socket Programming](#raw-socket-programming)
+  - [General Theory](#general-theory)
+    - [L4 (Transport Layer)](#l4-transport-layer)
+    - [TCP](#tcp)
+    - [UDP](#udp)
+  - [Implementation theory](#implementation-theory)
+    - [TCP SYN Scanning](#tcp-syn-scanning)
+    - [UDP Scanning](#udp-scanning)
+    - [Raw Socket Programming](#raw-socket-programming)
 - [How to Use](#how-to-use)
 - [Code Structure](#code-structure)
   - [Key Classes and Namespaces](#key-classes-and-namespaces)
@@ -30,7 +35,29 @@ This application scans target hosts for open, closed, or filtered TCP/UDP ports.
 - **Flexible Input**: Accepts port ranges (e.g., `20-23`), interface names, or domain names.
 
 ## Theory
-### TCP SYN Scanning
+### General Theory
+#### L4 (Transport Layer)
+- Handles communication between applications on different hosts
+- Uses ports to identify specific services (0-65535)
+- Two main protocols: **TCP** (reliable) and **UDP** (fast)
+
+#### TCP
+**Connection-based:** Uses 3-way handshake (SYN → SYN-ACK → ACK)
+**Reliable:** Retransmits lost packets, in-order delivery
+**Scanner uses:**
+- SYN scans (half-open) to check for open ports
+- Responses: SYN-ACK (open), RST (closed), no reply (filtered)
+
+#### UDP
+**Connectionless:** No handshake, just sends packets
+**Unreliable:** No retransmission or ordering
+**Scanner challenges:**
+- Open ports often don't respond
+- Relies on ICMP "Port Unreachable" errors for closed ports
+
+### Implementation Theory
+Theory necessary for understanding concrete implementation.
+#### TCP SYN Scanning
 - **Mechanism**:
   - Crafts a SYN segment with:
     - Random sequence number for security ([RFC 6528](https://tools.ietf.org/html/rfc6528)).
@@ -42,7 +69,7 @@ This application scans target hosts for open, closed, or filtered TCP/UDP ports.
   | RST       | Closed   | [RFC 793 Sec. 3.4](https://tools.ietf.org/html/rfc793#section-3.4) |
   | Timeout   | Filtered | [RFC 1122 Sec. 4.2.3.9](https://tools.ietf.org/html/rfc1122#section-4.2.3.9) |
 
-### UDP Scanning
+#### UDP Scanning
 - **ICMP Error Handling**:
   - **IPv4**: ICMP "Destination Unreachable" (Type 3, Code 3 - Port Unreachable).
   - **IPv6**: ICMPv6 "Destination Unreachable" (Type 1, Code 4 - Port Unreachable).
@@ -51,7 +78,7 @@ This application scans target hosts for open, closed, or filtered TCP/UDP ports.
     - Firewall rate limiting ([RFC 4890](https://tools.ietf.org/html/rfc4890)).
     - Network congestion ([RFC 8085](https://tools.ietf.org/html/rfc8085)).
 
-### Raw Socket Programming
+#### Raw Socket Programming
 - **Kernel Bypass**:
   - Direct header manipulation using `sendto()` with custom:
     - IP headers (including TTL and HLEN fields).
@@ -114,7 +141,7 @@ state at the time of creation and are only included for archival pourposes.
   127.0.0.1 67 udp open
   ```
 #### Testing with Wireshark
-To verify the behavior of the IPK Network Scanner (ipk-l4-scan), Wireshark was employed to monitor packets sent to target hosts and their 
+To verify the behavior of the IPK Network Scanner, Wireshark was employed to monitor packets sent to target hosts and their 
 corresponding responses. With Wireshark capturing traffic, the scanner binary was executed, allowing for detailed manual inspection 
 of each packet. This process enabled comparison of the observed responses against expected protocol behavior, ensuring accurate validation 
 of the scanner’s functionality.
